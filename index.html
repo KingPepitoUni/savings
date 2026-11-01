@@ -347,8 +347,8 @@ function dreamProgress(){
   const sorted = [...S.dreams].sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
   const out = {};
   for (const d of sorted) {
-    if (d.kind === 'house') {          // ignores the other dreams: full balance of its cash accounts (stocks never count)
-      const cash = (d.accounts || []).filter(id => acc(id)?.group === 'cash').reduce((s, id) => s + (start[id] || 0), 0);
+    if (d.kind === 'house') {          // ignores the other dreams: the whole net worth (cash + stocks + Alstom) is the budget
+      const cash = latest ? Math.max(0, totalsAt(latest).net) : 0;
       out[d.id] = {got:cash, house:houseCalc(cash)};
       continue;
     }
@@ -361,6 +361,7 @@ function dreamProgress(){
   return {out, order: sorted};
 }
 
+const m2 = s => s < 10 ? (Math.floor(s * 10) / 10).toFixed(1) : String(Math.floor(s));   // 0.2 m² rather than 0 m²
 /* affordable surface: cash = fee + S × [(down% + guarantee%) × (price + reno) + notary% × price] */
 function houseCalc(cash){
   const h = S.settings.house, market = h.type === 'flat' ? h.priceFlat : h.priceHouse;
@@ -441,7 +442,7 @@ function houseBlock(d, r, full){
   const bar = `<div class="bar"><i style="width:${c.pct * 100}%"></i></div><div class="sub">${nextTxt}</div>`;
   const kind = h.type === 'flat' ? 'flat' : 'house';
   if (!full) return `<a href="#dreams" class="house-mini"><div style="width:92px;flex:none">${icon}</div><div class="grow">
-      <div class="sub">${esc(d.name)}</div><div class="hero num" style="font-size:26px">${Math.floor(c.surf)} m²</div><div class="sub">${L.name}</div>${bar}</div></a>`;
+      <div class="sub">${esc(d.name)}</div><div class="hero num" style="font-size:26px">${m2(c.surf)} m²</div><div class="sub">${L.name}</div>${bar}</div></a>`;
   const seg = (action, val, cur, label) => `<button data-action="${action}" data-v="${val}" class="${cur === val ? 'on' : ''}">${label}</button>`;
   const line = (l, v, cls = '') => `<div class="row ${cls}"><span>${l}</span><span class="num">${v}</span></div>`;
   return `<div class="card">
@@ -450,21 +451,23 @@ function houseBlock(d, r, full){
       <div class="seg" role="group" aria-label="Property type">${seg('houseType', 'flat', h.type, 'Flat')}${seg('houseType', 'house', h.type, 'House')}</div>
       <div class="seg" role="group" aria-label="Renovation level">${seg('houseReno', 'light', h.reno, 'Light')}${seg('houseReno', 'medium', h.reno, 'Medium')}${seg('houseReno', 'heavy', h.reno, 'Heavy')}</div></div>
     <div style="max-width:240px;margin:12px auto 0">${icon}</div>
-    <div style="text-align:center"><div class="hero num">${Math.floor(c.surf)} m²</div><div class="sub">${L.name} · older ${kind} + ${h.reno} renovation</div></div>
+    <div style="text-align:center"><div class="hero num">${m2(c.surf)} m²</div><div class="sub">${L.name} · older ${kind} + ${h.reno} renovation</div></div>
     <div style="margin-top:12px">${bar}</div>
-    ${c.feeShort > 0 ? `<div class="tip" style="margin-top:14px"><div>Your cash on these accounts is <b class="num">${eur(c.cash)}</b>. The first <b class="num">${eur(c.fee)}</b> covers the bank application fee, so you need <b class="num">${eur(c.feeShort)}</b> more before the first m². After that, every <b class="num">${eur(c.perM2)}</b> adds 1 m².</div></div>` : `
+    ${c.feeShort > 0 ? `<div class="tip" style="margin-top:14px"><div>Your net worth is <b class="num">${eur(c.cash)}</b>. The first <b class="num">${eur(c.fee)}</b> covers the bank application fee, so you need <b class="num">${eur(c.feeShort)}</b> more before the first m². After that, every <b class="num">${eur(c.perM2)}</b> adds 1 m².</div></div>` : `
     <div style="margin-top:14px" class="sub">The project</div>
     ${line(`Purchase price <span class="muted">(${eur(c.p)}/m²)</span>`, eur(c.purchase))}
     ${line(`Renovation <span class="muted">(${eur(c.r)}/m²)</span>`, eur(c.renov))}
     ${line('<b>Total project</b>', `<b>${eur(c.total)}</b>`, 'sep')}
     ${line('<span class="muted">Covered by the loan</span>', `<span class="muted">${eur(c.loan)}</span>`)}
-    <div style="margin-top:14px" class="sub">Your cash: ${eur(c.cash)}</div>
+    <div style="margin-top:14px" class="sub">Your net worth: ${eur(c.cash)}</div>
     ${line(`Down payment <span class="muted">(${h.downPct}% of total)</span>`, eur(c.down))}
     ${line(`Notary fees <span class="muted">(${h.notaryPct}% of purchase)</span>`, eur(c.notary))}
     ${line(`Loan guarantee <span class="muted">(${h.guaranteePct}% of total)</span>`, eur(c.guarantee))}
     ${line('Bank application fee', eur(c.fee))}`}
     <div class="sub" style="margin-top:12px">Market ${eur(c.market)}/m² (${kind}, updated ${mLabel(h.pricesUpdated, true)}) − ${h.discount}% for work needed. <a href="#settings">Change</a></div>
-    <div style="margin-top:6px">${(d.accounts || []).filter(id => acc(id)?.group === 'cash').map(id => `<span class="chip">${esc(nodeName(id))}</span>`).join('')}</div>  </div>`;
+    ${(() => { const m = snapMonths().pop(), t = m ? totalsAt(m) : {cash:0, stocks:0, alstom:0};
+      return `<div style="margin-top:6px"><span class="chip">Cash ${eur(t.cash)}</span><span class="chip">Stocks ${eur(t.stocks)}</span><span class="chip">Alstom ${eur(t.alstom)}</span></div>`; })()}
+  </div>`;
 }
 
 /* ---------- views ---------- */
@@ -725,7 +728,7 @@ function viewFlows(){
 
 function viewDreams(){
   const {out, order} = dreamProgress();
-  let h = `<p class="sub" style="margin:4px 0 0">Your savings fill dream 1 first, then dream 2, and so on, so the same euro is never counted twice. Use the arrows to change the order. The house ignores the other dreams and uses all the cash on its accounts.</p>`;
+  let h = `<p class="sub" style="margin:4px 0 0">Your savings fill dream 1 first, then dream 2, and so on, so the same euro is never counted twice. Use the arrows to change the order. The house ignores the other dreams and uses your whole net worth.</p>`;
   if (!order.length) h += `<div class="card empty">No dreams yet.</div>`;
   const ranked = order.filter(d => d.kind !== 'house');
   ranked.forEach((d, i) => {
@@ -947,7 +950,7 @@ async function exportExcel(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.owed.items.map(i => ({Advance:i.label, Month:mLabel(i.month, true), Amount:i.amount, Received:i.received ? 'Yes' : 'No', 'Received in':i.received ? mLabel(i.receivedOn || i.month, true) : ''}))), 'Owed to me');
   const {out} = dreamProgress();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.dreams.map(d => ({Dream:d.name, Target:d.kind === 'house' ? '' : d.target, Deadline:d.deadline || '', Accounts:(d.accounts || []).map(nodeName).join(', '), Funded:Math.round(out[d.id].got),
-    Progress:d.kind === 'house' ? `${Math.floor(out[d.id].house.surf)} m² (${LEVELS[out[d.id].house.level].name}), project ${Math.round(out[d.id].house.total)} €` : Math.round(out[d.id].pct*100) + '%'}))), 'Dreams');
+    Progress:d.kind === 'house' ? `${m2(out[d.id].house.surf)} m² (${LEVELS[out[d.id].house.level].name}), project ${Math.round(out[d.id].house.total)} €` : Math.round(out[d.id].pct*100) + '%'}))), 'Dreams');
   const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   if (await shareFile(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `savings-${ym(today())}.xlsx`)) toast('Excel exported');
 }
@@ -994,7 +997,7 @@ function dreamForm(d){
     fields:[{key:'name', label:'Name', required:true},
       {key:'kind', label:'Type', type:'select', options:[{v:'', l:'Normal (target amount)'}, {v:'house', l:'House project (grows with your cash)'}]},
       {key:'target', label:'Target (€)', type:'number', hint:'Not used for a house project.'}, {key:'deadline', label:'Deadline', type:'month'},
-      {key:'accounts', label:'Accounts that count toward it', type:'multi', options:accountOpts(a => !a.archived), hint:'A house project only counts cash accounts.'}],
+      {key:'accounts', label:'Accounts that count toward it', type:'multi', options:accountOpts(a => !a.archived), hint:'A house project ignores this and uses your whole net worth.'}],
     onSave: v => {
       if (v.kind !== 'house' && !v.target) { alert('Set a target amount.'); return false; }
       if (v.kind === 'house' && S.dreams.some(x => x.kind === 'house' && x !== d)) { alert('There is already a house project.'); return false; }
