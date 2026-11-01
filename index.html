@@ -148,6 +148,7 @@ details summary::-webkit-details-marker{display:none}
 .welcome{text-align:center;padding:40px 8px}
 .welcome h1{font-size:28px;margin:12px 0 4px}
 .row.sep{border-top:1px solid var(--border);padding-top:6px}
+.rank{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:700}
 .house-mini{display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .house-ic svg{display:block;width:100%;height:auto}
 .house-ic{position:relative}
@@ -220,6 +221,8 @@ function normalize(d){
   d.settings.house = Object.assign(hd, d.settings.house || {});
   d.settings.house.renoCost = Object.assign(HOUSE_DEFAULT().renoCost, d.settings.house.renoCost || {});
   if (!d.dreams.some(x => x.kind === 'house')) { const h = d.dreams.find(x => /house|maison/i.test(x.name)); if (h) h.kind = 'house'; }
+  if (d.dreams.some(x => x.order == null))   // first run of priorities: start from deadline order
+    [...d.dreams].sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || (a.deadline || '9999').localeCompare(b.deadline || '9999')).forEach((x, i) => x.order = i + 1);
   return d;
 }
 function save(){
@@ -336,18 +339,17 @@ function defaultUpdateMonth(){
   return hasSnap(prev) ? cur : prev;
 }
 
-/* dreams: funded in deadline order from the balances of their accounts */
+/* dreams: funded in priority order (1, 2, 3…) from the balances of their accounts */
 function dreamProgress(){
   const latest = snapMonths().pop();
   const pool = {}; S.accounts.forEach(a => pool[a.id] = latest ? Math.max(0, valueAt(a, latest) ?? lastValue(a) ?? 0) : 0);
   const start = {...pool};
-  const sorted = [...S.dreams].sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+  const sorted = [...S.dreams].sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
   const out = {};
   for (const d of sorted) {
-    if (d.kind === 'house') {          // takes all the cash left on its accounts (stocks never count)
-      let cash = 0, before = 0;
-      for (const id of d.accounts || []) { if (acc(id)?.group !== 'cash') continue; before += start[id] || 0; cash += pool[id] || 0; pool[id] = 0; }
-      out[d.id] = {got:cash, usedByOthers:before - cash, house:houseCalc(cash)};
+    if (d.kind === 'house') {          // ignores the other dreams: full balance of its cash accounts (stocks never count)
+      const cash = (d.accounts || []).filter(id => acc(id)?.group === 'cash').reduce((s, id) => s + (start[id] || 0), 0);
+      out[d.id] = {got:cash, house:houseCalc(cash)};
       continue;
     }
     let need = +d.target || 0, got = 0;
@@ -371,7 +373,7 @@ function houseCalc(cash){
   const next = LEVELS[level + 1], cashFor = s => h.bankFee + s * perM2;
   const lo = level ? cashFor(LEVELS[level].min) : 0, hi = next ? cashFor(next.min) : null;
   return {cash, market, p, r, perM2, surf, purchase, renov, total, level, next,
-    down: dn*total, notary: n*purchase, guarantee: g*total, fee: Math.min(cash, h.bankFee), loan: total - dn*total,
+    down: dn*total, notary: n*purchase, guarantee: g*total, fee: h.bankFee, feeShort: Math.max(0, h.bankFee - cash), loan: total - dn*total,
     need: next ? Math.max(0, hi - cash) : 0, pct: next ? Math.max(0, Math.min(1, (cash - lo) / (hi - lo))) : 1};
 }
 /* animate only when new balances push the house up a level */
@@ -450,6 +452,7 @@ function houseBlock(d, r, full){
     <div style="max-width:240px;margin:12px auto 0">${icon}</div>
     <div style="text-align:center"><div class="hero num">${Math.floor(c.surf)} m²</div><div class="sub">${L.name} · older ${kind} + ${h.reno} renovation</div></div>
     <div style="margin-top:12px">${bar}</div>
+    ${c.feeShort > 0 ? `<div class="tip" style="margin-top:14px"><div>Your cash on these accounts is <b class="num">${eur(c.cash)}</b>. The first <b class="num">${eur(c.fee)}</b> covers the bank application fee, so you need <b class="num">${eur(c.feeShort)}</b> more before the first m². After that, every <b class="num">${eur(c.perM2)}</b> adds 1 m².</div></div>` : `
     <div style="margin-top:14px" class="sub">The project</div>
     ${line(`Purchase price <span class="muted">(${eur(c.p)}/m²)</span>`, eur(c.purchase))}
     ${line(`Renovation <span class="muted">(${eur(c.r)}/m²)</span>`, eur(c.renov))}
@@ -459,11 +462,9 @@ function houseBlock(d, r, full){
     ${line(`Down payment <span class="muted">(${h.downPct}% of total)</span>`, eur(c.down))}
     ${line(`Notary fees <span class="muted">(${h.notaryPct}% of purchase)</span>`, eur(c.notary))}
     ${line(`Loan guarantee <span class="muted">(${h.guaranteePct}% of total)</span>`, eur(c.guarantee))}
-    ${line('Bank application fee', eur(c.fee))}
+    ${line('Bank application fee', eur(c.fee))}`}
     <div class="sub" style="margin-top:12px">Market ${eur(c.market)}/m² (${kind}, updated ${mLabel(h.pricesUpdated, true)}) − ${h.discount}% for work needed. <a href="#settings">Change</a></div>
-    <div style="margin-top:6px">${(d.accounts || []).filter(id => acc(id)?.group === 'cash').map(id => `<span class="chip">${esc(nodeName(id))}</span>`).join('')}</div>
-    ${r.usedByOthers > 0.5 ? `<div class="sub" style="margin-top:6px">${eur(r.usedByOthers)} of these accounts is already set aside for earlier dreams.</div>` : ''}
-  </div>`;
+    <div style="margin-top:6px">${(d.accounts || []).filter(id => acc(id)?.group === 'cash').map(id => `<span class="chip">${esc(nodeName(id))}</span>`).join('')}</div>  </div>`;
 }
 
 /* ---------- views ---------- */
@@ -518,7 +519,7 @@ function viewHome(){
     const {out, order} = dreamProgress();
     const house = order.find(d => d.kind === 'house');
     h += `<div class="card"><div class="row"><h2 style="margin:0">Dreams</h2><a href="#dreams" class="sub">See all ›</a></div>` +
-      order.filter(d => d.kind !== 'house').map(d => `<div style="margin-top:10px"><div class="row"><span>${esc(d.name)}</span><span class="num sub">${Math.round(out[d.id].pct*100)}% · ${eur(out[d.id].got)} / ${eur(d.target)}</span></div>
+      order.filter(d => d.kind !== 'house').map((d, i) => `<div style="margin-top:10px"><div class="row"><span>${i + 1}. ${esc(d.name)}</span><span class="num sub">${Math.round(out[d.id].pct*100)}% · ${eur(out[d.id].got)} / ${eur(d.target)}</span></div>
         <div class="bar ${out[d.id].pct >= 1 ? 'good' : ''}"><i style="width:${Math.min(100, out[d.id].pct*100)}%"></i></div></div>`).join('') +
       (house ? houseBlock(house, out[house.id], false) : '') + `</div>`;
   }
@@ -724,17 +725,22 @@ function viewFlows(){
 
 function viewDreams(){
   const {out, order} = dreamProgress();
-  let h = `<p class="sub" style="margin:4px 0 0">Dreams are funded in deadline order: the earliest dream takes from its accounts first, so the same euro is never counted twice.</p>`;
+  let h = `<p class="sub" style="margin:4px 0 0">Your savings fill dream 1 first, then dream 2, and so on, so the same euro is never counted twice. Use the arrows to change the order. The house ignores the other dreams and uses all the cash on its accounts.</p>`;
   if (!order.length) h += `<div class="card empty">No dreams yet.</div>`;
-  for (const d of order) {
+  const ranked = order.filter(d => d.kind !== 'house');
+  ranked.forEach((d, i) => {
     const r = out[d.id];
-    if (d.kind === 'house') { h += houseBlock(d, r, true); continue; }
-    h += `<div class="card" data-action="editDream" data-id="${d.id}" style="cursor:pointer"><div class="row"><h3>${esc(d.name)}</h3><span class="sub">${d.deadline ? mLabel(d.deadline, true) : 'No deadline'} ›</span></div>
+    const arrow = (dir, label, off) => `<button class="btn small" data-action="moveDream" data-id="${d.id}" data-dir="${dir}" aria-label="${label}" ${off ? 'disabled style="opacity:.3"' : ''}>${dir < 0 ? '↑' : '↓'}</button>`;
+    h += `<div class="card" data-action="editDream" data-id="${d.id}" style="cursor:pointer"><div class="row"><div class="row" style="justify-content:flex-start;gap:10px"><span class="rank">${i + 1}</span><h3>${esc(d.name)}</h3></div>
+      <div class="row" style="gap:6px">${arrow(-1, 'Move up', i === 0)}${arrow(1, 'Move down', i === ranked.length - 1)}</div></div>
+      <div class="sub" style="margin-top:4px">${d.deadline ? mLabel(d.deadline, true) : 'No deadline'} · tap to edit</div>
       <div class="row" style="margin-top:8px"><span class="hero num" style="font-size:24px">${Math.round(r.pct*100)}%</span><span class="num">${eur(r.got)} / ${eur(d.target)}</span></div>
       <div class="bar ${r.pct >= 1 ? 'good' : ''}"><i style="width:${Math.min(100, r.pct*100)}%"></i></div>
       <div class="sub">${r.left <= 0 ? '<span class="ok">✓ Funded</span>' : `${eur(r.left)} to go${r.perMonth != null ? ` · <b>${eur(r.perMonth)}/month</b> for ${r.months} months` : ''}`}</div>
       <div style="margin-top:6px">${(d.accounts || []).map(id => `<span class="chip">${esc(nodeName(id))}</span>`).join('')}</div></div>`;
-  }
+  });
+  const house = order.find(d => d.kind === 'house');
+  if (house) h += houseBlock(house, out[house.id], true);
   return h + `<button class="btn primary" data-action="addDream">+ Add dream</button>`;
 }
 
@@ -992,7 +998,7 @@ function dreamForm(d){
     onSave: v => {
       if (v.kind !== 'house' && !v.target) { alert('Set a target amount.'); return false; }
       if (v.kind === 'house' && S.dreams.some(x => x.kind === 'house' && x !== d)) { alert('There is already a house project.'); return false; }
-      d ? Object.assign(d, v) : S.dreams.push({id:uid(), ...v});
+      d ? Object.assign(d, v) : S.dreams.push({id:uid(), order:Math.max(0, ...S.dreams.map(x => x.order || 0)) + 1, ...v});
     },
     onDelete: d && (() => S.dreams = S.dreams.filter(x => x !== d))});
 }
@@ -1027,6 +1033,14 @@ const ACTIONS = {
   addOwed: () => owedForm(), editOwed: d => owedForm(S.owed.items.find(x => x.id === d.id)),
   addRec: () => recForm(), editRec: d => recForm(S.owed.recurring.find(x => x.id === d.id)),
   repay: () => openRepay(),
+  moveDream: d => {
+    const ranked = S.dreams.filter(x => x.kind !== 'house').sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
+    const i = ranked.findIndex(x => x.id === d.id), j = i + +d.dir;
+    if (i < 0 || j < 0 || j >= ranked.length) return;
+    [ranked[i], ranked[j]] = [ranked[j], ranked[i]];
+    ranked.forEach((x, k) => x.order = k + 1);
+    save(); render();
+  },
   houseType: d => { S.settings.house.type = d.v; save(); render(); },
   houseReno: d => { S.settings.house.reno = d.v; save(); render(); },
   editHouse: () => { const h = S.settings.house;
