@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Savings Tracker</title>
+<meta name="description" content="Personal monthly savings tracker. Data stays on this device.">
+<meta name="theme-color" content="#f4f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Savings">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f4f1; --surface:#fcfcfb; --surface-2:#f0efec; --border:#e4e3df;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#8a8984;
+  --accent:#2a78d6; --accent-ink:#ffffff;
+  --good:#0ca30c; --good-text:#006300; --warn:#fab219; --warn-bg:#fff4dc; --warn-text:#6b4a00;
+  --crit:#d03b3b; --crit-text:#b02a2a;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#111110; --surface:#1a1a19; --surface-2:#262624; --border:#2e2e2b;
+    --text:#f0efec; --text-2:#c3c2b7; --muted:#8f8e86;
+    --accent:#3987e5;
+    --good-text:#4cc34c; --warn-bg:#3a2f12; --warn-text:#fad27a; --crit-text:#ef7b7b;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#111110; --surface:#1a1a19; --surface-2:#262624; --border:#2e2e2b;
+  --text:#f0efec; --text-2:#c3c2b7; --muted:#8f8e86;
+  --accent:#3987e5;
+  --good-text:#4cc34c; --warn-bg:#3a2f12; --warn-text:#fad27a; --crit-text:#ef7b7b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;
+  padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom));overscroll-behavior-y:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.num{font-variant-numeric:tabular-nums}
+main{max-width:560px;margin:0 auto;padding:8px 16px 24px}
+header.top{display:flex;align-items:center;justify-content:space-between;max-width:560px;margin:0 auto;padding:12px 16px 4px}
+header.top h1{font-size:28px;margin:0;letter-spacing:-.02em}
+.icon-btn{background:none;border:0;padding:8px;margin:-8px;color:var(--text-2);display:grid;place-items:center}
+.icon-btn svg{width:24px;height:24px}
+.sub{color:var(--text-2);font-size:13px}
+.muted{color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin:12px 0}
+.card h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);margin:0 0 10px}
+.card h3{font-size:16px;margin:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.row + .row{margin-top:6px}
+.hero{font-size:36px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.delta{font-size:14px;font-weight:600}
+.up{color:var(--good-text)} .down{color:var(--crit-text)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.tile{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
+.tile .l{font-size:12px;color:var(--text-2)} .tile .v{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin:6px 0 2px}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.bar.good > i{background:var(--good)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:10px 14px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.block{display:flex;width:100%}
+.btn.danger{color:var(--crit-text)}
+.btn.small{padding:6px 10px;font-size:13px;border-radius:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.banner{display:flex;gap:10px;align-items:center;background:var(--warn-bg);color:var(--warn-text);border-radius:var(--radius);padding:12px 14px;margin:8px 0;border:1px solid var(--warn)}
+.banner svg{flex:none;width:22px;height:22px}
+.banner .grow{flex:1}
+.banner .btn{border-color:var(--warn);background:transparent;color:inherit}
+.tip{background:var(--surface-2);border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--text-2);margin:8px 0;display:flex;gap:8px;align-items:flex-start}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.list li:first-child{border-top:0}
+.list .grow{flex:1;min-width:0}
+.list .name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sw{width:10px;height:10px;border-radius:3px;flex:none;display:inline-block}
+.chip{display:inline-block;font-size:12px;background:var(--surface-2);border-radius:999px;padding:2px 8px;margin:2px 4px 0 0;color:var(--text-2)}
+.tag-warn{color:var(--crit-text);font-weight:600}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;padding:4px 10px;border-radius:8px;font-size:13px;color:var(--text-2)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+/* chart */
+.chart-wrap{position:relative;touch-action:pan-y}
+.chart-wrap svg{display:block;width:100%;height:auto}
+.axis text{fill:var(--muted);font-size:10px}
+.grid line{stroke:var(--border);stroke-width:1}
+.ttip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:150px;display:none;z-index:2}
+.ttip .row + .row{margin-top:2px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-2);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend .ln{width:14px;height:0;border-top:2px dashed var(--text)}
+.legend .ln.trend{border-top:2px dotted var(--text-2)}
+/* flow diagram */
+.flow svg{display:block;width:100%;height:auto}
+.flow text{font-size:10px;fill:var(--text)}
+/* nav */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:2px 0}
+nav.tabs a svg{width:24px;height:24px}
+nav.tabs a.on{color:var(--accent)}
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;top:max(24px,env(safe-area-inset-top));background:var(--bg);border-radius:16px 16px 0 0;z-index:11;display:none;flex-direction:column;max-width:560px;margin:0 auto}
+.sheet.open,.sheet-bg.open{display:flex}
+.sheet-bg.open{display:block}
+.sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.sheet header b{font-size:16px}
+.sheet header button{background:none;border:0;color:var(--accent);font-weight:600;padding:6px 0;min-width:60px}
+.sheet header button:first-child{text-align:left;font-weight:400}
+.sheet header button:last-child{text-align:right}
+.sheet .body{overflow-y:auto;padding:8px 16px calc(24px + env(safe-area-inset-bottom));flex:1;-webkit-overflow-scrolling:touch}
+.field{display:block;margin:12px 0}
+.field > span{display:block;font-size:13px;color:var(--text-2);margin-bottom:4px}
+.field input:not([type=checkbox]),.field select{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:16px;min-height:44px}
+.field .hint{font-size:12px;color:var(--muted);margin-top:4px}
+.checks label{display:flex;align-items:center;gap:10px;padding:8px 0}
+.checks input,.check input{width:22px;height:22px;accent-color:var(--accent)}
+.check{display:flex;align-items:center;gap:10px;margin:12px 0}
+.upd li{padding:8px 0}
+.upd input{width:130px;text-align:right;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:17px;font-variant-numeric:tabular-nums}
+.upd input:focus{outline:2px solid var(--accent);border-color:transparent}
+.month-pick{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
+.month-pick b{font-size:18px}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+table.hist{width:100%;border-collapse:collapse;font-size:13px}
+table.hist td,table.hist th{padding:6px 4px;border-top:1px solid var(--border);text-align:right}
+table.hist th{color:var(--text-2);font-weight:600;border-top:0}
+table.hist td:first-child,table.hist th:first-child{text-align:left}
+details summary{cursor:pointer;color:var(--accent);font-size:14px;padding:6px 0;list-style:none}
+details summary::-webkit-details-marker{display:none}
+.empty{text-align:center;padding:24px 8px;color:var(--text-2)}
+.welcome{text-align:center;padding:40px 8px}
+.welcome h1{font-size:28px;margin:12px 0 4px}
+.ok{color:var(--good-text);font-weight:600}
+.ko{color:var(--crit-text);font-weight:600}
+</style>
+</head>
+<body>
+<header class="top"><h1 id="title">Home</h1>
+  <button class="icon-btn" data-action="settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</header>
+<main id="app"></main>
+<nav class="tabs" id="tabs">
+  <a href="#home" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
+  <a href="#savings" data-tab="savings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2M7 6V4h10v2"/></svg>Savings</a>
+  <a href="#flows" data-tab="flows"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="19.5" r="2"/><circle cx="19" cy="19.5" r="2"/><path d="M12 6.5v4M12 10.5c-5 0-7 3-7 7M12 10.5c5 0 7 3 7 7"/></svg>Flows</a>
+  <a href="#dreams" data-tab="dreams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Dreams</a>
+  <a href="#owed" data-tab="owed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>Owed</a>
+</nav>
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+const KEY = 'savings-tracker-v1';
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ML = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const GROUPS = {cash:'Cash', stocks:'Stocks', alstom:'Company shares'};
+const ROLES = {checking:'Checking (money passes through)', savings:'Savings account', spending:'Spending (money is spent)', investment:'Investment'};
+
+const DEFAULT_STATE = () => ({
+  version: 1,
+  accounts: [
+    {id:'checking', name:'Checking', group:'cash', role:'checking', color:1},
+    {id:'savings', name:'Savings account', group:'cash', role:'savings', color:3},
+    {id:'broker', name:'Brokerage', group:'stocks', role:'investment', color:6}
+  ],
+  parties: [{id:'salary', name:'Salary', kind:'income'}],
+  flows: [], snapshots: {}, dreams: [],
+  owed: {recurring: [], items: []},
+  settings: {targetMode:'auto', target:0, sharesRatio:50, goalStart:null, lastBackup:null, hideInstallTip:false}
+});
+
+/* ---------- storage ---------- */
+let S = null;
+function load(){
+  try { const raw = localStorage.getItem(KEY); return raw ? normalize(JSON.parse(raw)) : null; }
+  catch(e){ return null; }
+}
+function normalize(d){
+  const base = DEFAULT_STATE();
+  d.accounts ??= []; d.parties ??= []; d.flows ??= []; d.snapshots ??= {}; d.dreams ??= [];
+  d.owed ??= {}; d.owed.recurring ??= []; d.owed.items ??= [];
+  d.settings = Object.assign(base.settings, d.settings || {});
+  return d;
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e){ alert('Could not save on this device: ' + e.message + '\nExport a backup now.'); }
+}
+
+/* ---------- helpers ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const pad = n => String(n).padStart(2,'0');
+const ym = d => d.getFullYear() + '-' + pad(d.getMonth()+1);
+const addM = (m, n) => { let [y, mo] = m.split('-').map(Number); mo += n - 1; y += Math.floor(mo/12); mo = ((mo % 12) + 12) % 12 + 1; return y + '-' + pad(mo); };
+const mDiff = (a, b) => { const [ay, am] = a.split('-').map(Number), [by, bm] = b.split('-').map(Number); return (by*12 + bm) - (ay*12 + am); };
+const mLabel = (m, long) => { if (!m) return '–'; const [y, mo] = m.split('-').map(Number); return long ? `${ML[mo-1]} ${y}` : `${MN[mo-1]} ${String(y).slice(2)}`; };
+const range = (a, b) => { const out = []; for (let m = a; m <= b; m = addM(m, 1)) out.push(m); return out; };
+const nf0 = new Intl.NumberFormat('en-IE', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+const nf2 = new Intl.NumberFormat('en-IE', {style:'currency', currency:'EUR', minimumFractionDigits:2, maximumFractionDigits:2});
+const eur = (n, d) => (n == null || isNaN(n)) ? '–' : (d ? nf2 : nf0).format(n);
+const signed = (n, d) => (n > 0.004 ? '+' : n < -0.004 ? '−' : '') + eur(Math.abs(n), d);
+const kfmt = v => Math.abs(v) >= 1000 ? (v/1000).toFixed(v % 1000 ? 1 : 0).replace('.0','') + 'k' : String(Math.round(v));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { if (v == null) return null; const s = String(v).replace(/[\s€]/g,'').replace(',', '.'); if (s === '') return null; const n = parseFloat(s); return isFinite(n) ? Math.round(n*100)/100 : null; };
+const uid = () => Math.random().toString(36).slice(2, 9);
+const today = () => new Date();
+const color = a => `var(--s${((a?.color ?? 1) - 1) % 8 + 1})`;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
+
+/* ---------- model ---------- */
+const acc = id => S.accounts.find(a => a.id === id);
+const party = id => S.parties.find(p => p.id === id);
+const node = id => acc(id) || party(id);
+const nodeName = id => node(id)?.name ?? '(deleted)';
+const activeAccounts = () => S.accounts.filter(a => !a.archived);
+const hasSnap = m => { const s = S.snapshots[m]; return !!s && Object.values(s).some(v => v != null); };
+const snapMonths = () => Object.keys(S.snapshots).filter(hasSnap).sort();
+
+function valueAt(a, m){
+  const v = S.snapshots[m]?.[a.id];
+  if (v != null) return v;
+  if (a.group === 'alstom') {           // yearly: carry the last known value forward
+    const prev = snapMonths().filter(x => x < m && S.snapshots[x][a.id] != null);
+    if (prev.length) return S.snapshots[prev[prev.length-1]][a.id];
+  }
+  return null;
+}
+function lastValue(a, before){
+  const ms = Object.keys(S.snapshots).filter(m => (!before || m < before) && S.snapshots[m][a.id] != null).sort();
+  return ms.length ? S.snapshots[ms[ms.length-1]][a.id] : null;
+}
+function totalsAt(m){
+  const t = {cash:0, stocks:0, alstom:0};
+  for (const a of S.accounts) { const v = valueAt(a, m); if (v != null) t[a.group] += v; }
+  t.liquid = t.cash + t.stocks; t.net = t.liquid + t.alstom;
+  return t;
+}
+
+/* money advanced to Dad */
+function materialize(){
+  const now = ym(today());
+  for (const r of S.owed.recurring) {
+    if (!r.startMonth) continue;
+    const end = r.endMonth && r.endMonth < now ? r.endMonth : now;
+    for (const m of range(r.startMonth, end))
+      if (!S.owed.items.some(i => i.recId === r.id && i.month === m))
+        S.owed.items.push({id:uid(), recId:r.id, label:r.label, amount:r.amount, month:m, expectedMonth:m, received:false});
+  }
+}
+const owedAt = m => S.owed.items.filter(i => i.month <= m && !(i.received && (i.receivedOn || i.month) <= m)).reduce((s, i) => s + i.amount, 0);
+const owedNow = () => S.owed.items.filter(i => !i.received).reduce((s, i) => s + i.amount, 0);
+
+/* what was saved between the previous update and month m */
+function savedFor(m){
+  const prev = snapMonths().filter(x => x < m);
+  if (!hasSnap(m) || !prev.length) return null;
+  const p = prev[prev.length-1], gap = mDiff(p, m);
+  const a = totalsAt(m), b = totalsAt(p), dOwed = owedAt(m) - owedAt(p);
+  const cash = a.cash - b.cash + dOwed, shares = a.stocks - b.stocks;
+  return {from:p, gap, cash, shares, total:cash + shares, dOwed};
+}
+
+/* the 1st-of-the-month plan, computed from the flows */
+function plan(includeDad = true){
+  const bal = {}; S.accounts.forEach(a => bal[a.id] = {in:0, out:0});
+  const r = {bal, income:0, dadIn:0, spending:0, dadAdvance:0, toStocks:0, toSavings:0, checkingLeft:0};
+  for (const f of S.flows) {
+    const from = node(f.from), to = node(f.to), a = +f.amount || 0;
+    if (!from || !to) continue;
+    if (!includeDad && from.dad) continue;
+    if (bal[f.from]) bal[f.from].out += a;
+    if (bal[f.to]) bal[f.to].in += a;
+    if (from.kind === 'income') from.dad ? r.dadIn += a : r.income += a;
+    if (to.kind === 'expense') { r.spending += a; if (to.dad) r.dadAdvance += a; }
+    const fa = acc(f.from), ta = acc(f.to);
+    if (ta?.role === 'spending' && fa?.role !== 'spending') r.spending += a;
+    if (fa?.role === 'spending' && ta && ta.role !== 'spending') r.spending -= a;
+    if (ta?.group === 'stocks' && fa?.group !== 'stocks') r.toStocks += a;
+    if (ta?.role === 'savings' && fa?.role !== 'savings') r.toSavings += a;
+  }
+  for (const a of S.accounts) if (a.role === 'checking') r.checkingLeft += bal[a.id].in - bal[a.id].out;
+  r.capacity = r.income + r.dadIn - r.spending;
+  return r;
+}
+const target = () => S.settings.targetMode === 'manual' ? (+S.settings.target || 0) : Math.max(0, Math.round(plan().capacity));
+
+function dueMonth(){
+  const t = today(), cur = ym(t), dim = new Date(t.getFullYear(), t.getMonth()+1, 0).getDate();
+  if (t.getDate() >= Math.min(30, dim) && !hasSnap(cur)) return cur;
+  const prev = addM(cur, -1);
+  return hasSnap(prev) || hasSnap(cur) ? null : prev;
+}
+function defaultUpdateMonth(){
+  const t = today(), cur = ym(t), prev = addM(cur, -1);
+  if (t.getDate() >= 25) return cur;
+  return hasSnap(prev) ? cur : prev;
+}
+
+/* dreams: funded in deadline order from the balances of their accounts */
+function dreamProgress(){
+  const latest = snapMonths().pop();
+  const pool = {}; S.accounts.forEach(a => pool[a.id] = latest ? Math.max(0, valueAt(a, latest) ?? lastValue(a) ?? 0) : 0);
+  const sorted = [...S.dreams].sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+  const out = {};
+  for (const d of sorted) {
+    let need = +d.target || 0, got = 0;
+    for (const id of d.accounts || []) { const take = Math.min(need - got, pool[id] || 0); if (take > 0) { got += take; pool[id] -= take; } }
+    const left = Math.max(0, (+d.target || 0) - got);
+    const months = d.deadline ? Math.max(1, mDiff(ym(today()), d.deadline)) : null;
+    out[d.id] = {got, pct: d.target ? got / d.target : 0, left, months, perMonth: months ? left / months : null};
+  }
+  return {out, order: sorted};
+}
+
+/* ---------- views ---------- */
+const ICON_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.5v.01"/></svg>';
+
+function banner(){
+  const m = dueMonth();
+  let h = '';
+  if (m) h += `<div class="banner">${ICON_WARN}<div class="grow"><b>${ML[+m.slice(5)-1]} isn't updated yet</b><div class="sub" style="color:inherit">Takes 2 minutes.</div></div><button class="btn small" data-action="update" data-month="${m}">Update</button></div>`;
+  const lb = S.settings.lastBackup, days = lb ? Math.floor((Date.now() - new Date(lb)) / 864e5) : null;
+  if (snapMonths().length && (days == null || days > 35))
+    h += `<div class="banner">${ICON_WARN}<div class="grow"><b>${days == null ? 'No backup yet' : `Last backup ${days} days ago`}</b><div class="sub" style="color:inherit">Data only lives on this phone.</div></div><button class="btn small" data-action="backup">Back up</button></div>`;
+  return h;
+}
+
+function viewHome(){
+  const ms = snapMonths(), latest = ms[ms.length-1];
+  let h = banner();
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  if (/iPhone|iPad/.test(navigator.userAgent) && !standalone && !S.settings.hideInstallTip)
+    h += `<div class="tip"><div class="grow">Install it: tap <b>Share</b> → <b>Add to Home Screen</b>, then always open it from the icon (Safari and the icon keep separate data).</div><button class="icon-btn" data-action="hideTip" aria-label="Dismiss">✕</button></div>`;
+  if (!latest) return h + `<div class="card empty">No balances yet.<div class="btns" style="justify-content:center"><button class="btn primary" data-action="update">Enter this month's balances</button></div></div>`;
+
+  const t = totalsAt(latest), prevM = ms[ms.length-2], d = prevM ? t.net - totalsAt(prevM).net : null;
+  const owed = owedNow();
+  h += `<div class="card">
+    <div class="row"><h2 style="margin:0">Net worth · ${mLabel(latest, true)}</h2></div>
+    <div class="hero num" style="margin-top:6px">${eur(t.net)}</div>
+    ${d != null ? `<div class="delta num ${d >= 0 ? 'up' : 'down'}">${signed(d)} vs ${mLabel(prevM)}</div>` : ''}
+    <div class="tiles">
+      <div class="tile"><div class="l">Cash</div><div class="v num">${eur(t.cash)}</div></div>
+      <div class="tile"><div class="l">Stocks</div><div class="v num">${eur(t.stocks)}</div></div>
+      <div class="tile"><div class="l">Alstom</div><div class="v num">${eur(t.alstom)}</div></div>
+    </div>
+    ${owed > 0 ? `<a href="#owed" class="row" style="margin-top:10px;text-decoration:none;color:inherit"><span class="sub">Owed to me by Dad (not counted)</span><b class="num">${eur(owed)} ›</b></a>` : ''}
+  </div>`;
+
+  const sv = savedFor(latest), tg = target(), ratio = (+S.settings.sharesRatio || 0) / 100;
+  if (sv) {
+    const tgP = tg * sv.gap, pct = tgP > 0 ? Math.max(0, sv.total / tgP) : 0;
+    h += `<div class="card"><h2>Saved ${sv.gap > 1 ? `since ${mLabel(sv.from)} (${sv.gap} months)` : `in ${ML[+latest.slice(5)-1]}`}</h2>
+      <div class="row"><span class="hero num" style="font-size:28px">${signed(sv.total)}</span><span class="sub num">target ${eur(tgP)}</span></div>
+      <div class="bar ${pct >= 1 ? 'good' : ''}"><i style="width:${Math.min(100, pct*100)}%"></i></div>
+      <div class="row sub"><span>${Math.round(pct*100)}% of target</span><span>${pct >= 1 ? '<span class="ok">✓ on track</span>' : `<span class="ko">${eur(tgP - sv.total)} short</span>`}</span></div>
+      <div class="row" style="margin-top:10px"><span>Savings (cash)</span><span class="num">${signed(sv.cash)} <span class="muted">/ ${eur(tgP*(1-ratio))}</span></span></div>
+      <div class="row"><span>Shares</span><span class="num">${signed(sv.shares)} <span class="muted">/ ${eur(tgP*ratio)}</span></span></div>
+      ${sv.dOwed > 0.5 ? `<div class="sub" style="margin-top:6px">Includes ${eur(sv.dOwed, 1)} advanced to Dad and not yet repaid.</div>` : ''}
+    </div>`;
+  }
+
+  if (S.dreams.length) {
+    const {out, order} = dreamProgress();
+    h += `<div class="card"><div class="row"><h2 style="margin:0">Dreams</h2><a href="#dreams" class="sub">See all ›</a></div>` +
+      order.map(d => `<div style="margin-top:10px"><div class="row"><span>${esc(d.name)}</span><span class="num sub">${Math.round(out[d.id].pct*100)}% · ${eur(out[d.id].got)} / ${eur(d.target)}</span></div>
+        <div class="bar ${out[d.id].pct >= 1 ? 'good' : ''}"><i style="width:${Math.min(100, out[d.id].pct*100)}%"></i></div></div>`).join('') + `</div>`;
+  }
+
+  h += `<div class="card"><div class="row"><h2 style="margin:0">Balances by account</h2>
+    <div class="seg" role="group"><button data-action="chartRange" data-r="12" class="${chartRange === 12 ? 'on' : ''}">1Y</button><button data-action="chartRange" data-r="0" class="${chartRange === 0 ? 'on' : ''}">All</button></div></div>
+    ${stackChart()}</div>`;
+  return h;
+}
+
+let chartRange = 12, CH = null;
+function stackChart(){
+  const ms = snapMonths(); if (!ms.length) return '';
+  const end = [ms[ms.length-1], dueMonth() || ''].sort().pop();
+  let start = ms[0];
+  if (chartRange && mDiff(start, end) > chartRange - 1) start = addM(end, -(chartRange - 1));
+  const months = range(start, end);
+  const accs = S.accounts.filter(a => a.group !== 'alstom' && months.some(m => S.snapshots[m]?.[a.id] != null)).sort((a, b) => a.color - b.color);
+  const totals = months.map(m => hasSnap(m) ? totalsAt(m).liquid : null);
+
+  const tg = target(), gs = S.settings.goalStart || ms[0];
+  const baseM = ms.filter(m => m <= gs).pop() || ms[0], base = totalsAt(baseM).liquid;
+  const goal = months.map(m => m >= gs ? base + tg * mDiff(gs, m) : null);
+
+  const pts = totals.map((v, i) => [i, v]).filter(p => p[1] != null);
+  let trend = null;
+  if (pts.length >= 2) {
+    const n = pts.length, sx = pts.reduce((s, p) => s + p[0], 0), sy = pts.reduce((s, p) => s + p[1], 0);
+    const sxx = pts.reduce((s, p) => s + p[0]*p[0], 0), sxy = pts.reduce((s, p) => s + p[0]*p[1], 0);
+    const k = (n*sxy - sx*sy) / (n*sxx - sx*sx), b0 = (sy - k*sx) / n;
+    trend = months.map((_, i) => i >= pts[0][0] ? b0 + k*i : null);
+  }
+  const W = 340, H = 210, ml = 34, mr = 6, mt = 8, mb = 22, pw = W - ml - mr, ph = H - mt - mb;
+  const maxV = Math.max(1, ...totals.filter(v => v != null), ...goal.filter(v => v != null), ...(trend || []).filter(v => v != null)) * 1.06;
+  const rawStep = maxV / 4, mag = Math.pow(10, Math.floor(Math.log10(rawStep))), step = [1, 2, 2.5, 5, 10].map(x => x*mag).find(x => x >= rawStep);
+  const yMax = Math.ceil(maxV / step) * step, y = v => mt + ph - (v / yMax) * ph;
+  const band = pw / months.length, bw = Math.min(26, band * 0.62), cx = i => ml + band * (i + .5);
+
+  let g = '<g class="grid">';
+  for (let v = 0; v <= yMax + 1e-6; v += step) g += `<line x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}"/>`;
+  g += '</g><g class="axis">';
+  for (let v = 0; v <= yMax + 1e-6; v += step) g += `<text x="${ml - 5}" y="${y(v) + 3}" text-anchor="end">${kfmt(v)}</text>`;
+  const every = Math.ceil(months.length / 6);
+  months.forEach((m, i) => { if ((months.length - 1 - i) % every === 0) g += `<text x="${cx(i)}" y="${H - 6}" text-anchor="middle">${MN[+m.slice(5)-1]}${m.endsWith('-01') || i === 0 ? ' ' + m.slice(2, 4) : ''}</text>`; });
+  g += '</g>';
+
+  let bars = '';
+  months.forEach((m, i) => {
+    if (totals[i] == null) return;
+    let acc0 = 0; const segs = accs.map(a => ({a, v: Math.max(0, S.snapshots[m]?.[a.id] ?? 0)})).filter(s => s.v > 0);
+    segs.forEach((s, k) => {
+      const y1 = y(acc0 + s.v), y0 = y(acc0), hgt = Math.max(0, y0 - y1 - (k ? 2 : 0)), x = cx(i) - bw/2;
+      acc0 += s.v;
+      if (hgt <= 0) return;
+      const top = k === segs.length - 1, r = Math.min(4, hgt, bw/2);
+      bars += top
+        ? `<path d="M${x},${y1 + hgt} V${y1 + r} Q${x},${y1} ${x + r},${y1} H${x + bw - r} Q${x + bw},${y1} ${x + bw},${y1 + r} V${y1 + hgt} Z" fill="${color(s.a)}"/>`
+        : `<rect x="${x}" y="${y1}" width="${bw}" height="${hgt}" fill="${color(s.a)}"/>`;
+    });
+  });
+  const line = (arr, cls) => { const p = arr.map((v, i) => v == null ? null : `${cx(i)},${y(v)}`).filter(Boolean); return p.length > 1 ? `<polyline points="${p.join(' ')}" fill="none" ${cls}/>` : ''; };
+  const lines = line(goal, 'stroke="var(--text)" stroke-width="2" stroke-dasharray="5 4"') + (trend ? line(trend, 'stroke="var(--text-2)" stroke-width="2" stroke-dasharray="1.5 3" stroke-linecap="round"') : '');
+  const hits = months.map((m, i) => `<rect data-i="${i}" x="${ml + band*i}" y="${mt}" width="${band}" height="${ph}" fill="transparent"/>`).join('');
+  CH = {months, accs, totals, goal, trend, W, cx};
+  return `<div class="chart-wrap" id="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Stacked balances per account by month with target and trend lines">${g}${bars}${lines}<line id="cross" x1="0" x2="0" y1="${mt}" y2="${mt + ph}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>${hits}</svg><div class="ttip" id="ttip"></div></div>
+    <div class="legend">${accs.map(a => `<span><i class="sw" style="background:${color(a)}"></i>${esc(a.name)}</span>`).join('')}<span><i class="ln"></i>Target (${eur(tg)}/mo)</span>${trend ? '<span><i class="ln trend"></i>Trend</span>' : ''}</div>`;
+}
+function chartTip(i, el){
+  if (!CH) return;
+  const t = $('#ttip'), wrap = $('#chart'), m = CH.months[i];
+  const rows = CH.accs.map(a => { const v = S.snapshots[m]?.[a.id]; return v == null ? '' : `<div class="row"><span><i class="sw" style="background:${color(a)}"></i> ${esc(a.name)}</span><span class="num">${eur(v)}</span></div>`; }).join('');
+  t.innerHTML = `<b>${mLabel(m, true)}</b>${CH.totals[i] == null ? '<div class="muted">Not updated</div>' : rows + `<div class="row" style="border-top:1px solid var(--border);padding-top:3px;margin-top:3px"><b>Total</b><b class="num">${eur(CH.totals[i])}</b></div>`}${CH.goal[i] != null ? `<div class="row muted"><span>Target</span><span class="num">${eur(CH.goal[i])}</span></div>` : ''}`;
+  t.style.display = 'block';
+  const scale = wrap.clientWidth / CH.W, x = CH.cx(i) * scale;
+  t.style.left = Math.max(0, Math.min(wrap.clientWidth - t.offsetWidth, x - t.offsetWidth/2)) + 'px';
+  t.style.top = '-8px'; t.style.transform = 'translateY(-100%)';
+  const c = $('#cross'); c.setAttribute('x1', CH.cx(i)); c.setAttribute('x2', CH.cx(i)); c.setAttribute('visibility', 'visible');
+}
+function chartHide(){ const t = $('#ttip'); if (t) t.style.display = 'none'; $('#cross')?.setAttribute('visibility', 'hidden'); }
+
+function spark(a){
+  const ms = snapMonths().filter(m => S.snapshots[m][a.id] != null).slice(-12);
+  if (ms.length < 2) return '';
+  const v = ms.map(m => S.snapshots[m][a.id]), mn = Math.min(...v), mx = Math.max(...v), W = 80, H = 24;
+  const p = v.map((x, i) => `${(i/(v.length-1))*W},${H - 2 - ((x - mn) / ((mx - mn) || 1)) * (H - 4)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${p}" fill="none" stroke="${color(a)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function viewSavings(){
+  const ms = snapMonths(), latest = ms[ms.length-1], prev = ms[ms.length-2];
+  let h = banner() + `<button class="btn primary block" data-action="update" style="margin:8px 0 4px;padding:14px">Update balances</button>`;
+  const groups = ['cash', 'stocks', 'alstom'];
+  for (const g of groups) {
+    const accs = S.accounts.filter(a => a.group === g && !a.archived);
+    if (!accs.length) continue;
+    const tot = latest ? accs.reduce((s, a) => s + (valueAt(a, latest) ?? 0), 0) : 0;
+    h += `<div class="card"><div class="row"><h2 style="margin:0">${GROUPS[g]}</h2><b class="num">${eur(tot)}</b></div><ul class="list" style="margin-top:6px">`;
+    for (const a of accs) {
+      const v = latest ? valueAt(a, latest) : null, pv = prev ? valueAt(a, prev) : null;
+      const d = v != null && pv != null ? v - pv : null;
+      const cap = a.cap ? `<div class="bar ${v >= a.cap ? 'good' : ''}" style="height:5px"><i style="width:${Math.min(100, (v || 0) / a.cap * 100)}%"></i></div><div class="sub">${v >= a.cap ? 'Full' : eur(a.cap - (v || 0)) + ' room left'} · cap ${eur(a.cap)}</div>` : '';
+      h += `<li><i class="sw" style="background:${color(a)}"></i><div class="grow"><div class="name">${esc(a.name)}</div>${cap}</div>${spark(a)}<div style="text-align:right"><div class="num"><b>${eur(v, 0)}</b></div>${d != null ? `<div class="num sub ${d >= 0 ? 'up' : 'down'}">${signed(d)}</div>` : ''}</div></li>`;
+    }
+    h += `</ul></div>`;
+  }
+  if (ms.length) {
+    const accs = S.accounts.filter(a => ms.some(m => S.snapshots[m][a.id] != null));
+    h += `<div class="card"><h2>History</h2><div style="overflow-x:auto"><table class="hist num"><tr><th>Month</th><th>Cash</th><th>Stocks</th><th>Net</th><th>Saved</th><th></th></tr>` +
+      [...ms].reverse().map(m => { const t = totalsAt(m), sv = savedFor(m);
+        return `<tr><td>${mLabel(m)}</td><td>${eur(t.cash)}</td><td>${eur(t.stocks)}</td><td><b>${eur(t.net)}</b></td><td class="${sv ? (sv.total >= 0 ? 'up' : 'down') : ''}">${sv ? signed(sv.total) : '–'}</td><td><button class="btn small" data-action="update" data-month="${m}" aria-label="Edit ${mLabel(m)}">Edit</button></td></tr>`; }).join('') +
+      `</table></div><details><summary>Per account</summary><div style="overflow-x:auto"><table class="hist num"><tr><th>Month</th>${accs.map(a => `<th>${esc(a.name)}</th>`).join('')}</tr>${[...ms].reverse().map(m => `<tr><td>${mLabel(m)}</td>${accs.map(a => `<td>${eur(S.snapshots[m][a.id])}</td>`).join('')}</tr>`).join('')}</table></div></details></div>`;
+  }
+  return h;
+}
+
+/* flows */
+function flowDiagram(){
+  const flows = S.flows.filter(f => node(f.from) && node(f.to) && +f.amount);
+  if (!flows.length) return '<div class="empty">No transfers yet.</div>';
+  const edges = {};
+  for (const f of flows) { const k = f.from + '>' + f.to; edges[k] ??= {from:f.from, to:f.to, amount:0}; edges[k].amount += +f.amount; }
+  const E = Object.values(edges), ids = [...new Set(flows.flatMap(f => [f.from, f.to]))];
+  const layer = {}; ids.forEach(id => layer[id] = node(id).kind === 'income' ? 0 : 1);
+  for (let it = 0; it < ids.length; it++) {
+    let ch = false;
+    for (const e of E) { if (node(e.to).kind === 'income') continue; const l = layer[e.from] + 1; if (l > layer[e.to] && l < 8) { layer[e.to] = l; ch = true; } }
+    if (!ch) break;
+  }
+  const W = 340, nodeH = 38, rowGap = 74, maxL = Math.max(...Object.values(layer));
+  const pos = {};
+  for (let L = 0; L <= maxL; L++) {
+    let row = ids.filter(id => layer[id] === L);
+    if (L > 0) {
+      const bc = id => { const src = E.filter(e => e.to === id && pos[e.from]); return src.length ? src.reduce((s, e) => s + pos[e.from].cx, 0) / src.length : W/2; };
+      row.sort((a, b) => bc(a) - bc(b));
+    }
+    const n = row.length, gap = 6, nw = Math.min(118, (W - gap*(n-1)) / n), total = n*nw + (n-1)*gap, x0 = (W - total) / 2;
+    row.forEach((id, i) => { const x = x0 + i*(nw + gap); pos[id] = {x, y: 4 + L*rowGap, w: nw, cx: x + nw/2}; });
+  }
+  const H = 4 + maxL*rowGap + nodeH + 4, maxA = Math.max(...E.map(e => e.amount)), p = plan();
+  const placed = ids.map(id => ({x: pos[id].x, y: pos[id].y, w: pos[id].w, h: nodeH}));
+  const overlap = b => placed.some(q => b.x < q.x + q.w && b.x + b.w > q.x && b.y < q.y + q.h && b.y + b.h > q.y);
+  let paths = '', labels = '';
+  const outIdx = {}, inIdx = {};
+  E.sort((a, b) => pos[a.to].cx - pos[b.to].cx);
+  for (const e of E) {
+    const s = pos[e.from], t = pos[e.to];
+    const outs = E.filter(x => x.from === e.from), ins = E.filter(x => x.to === e.to).sort((a, b) => pos[a.from].cx - pos[b.from].cx);
+    const x0 = s.x + s.w * (outs.indexOf(e) + 1) / (outs.length + 1), y0 = s.y + nodeH;
+    const x1 = t.x + t.w * (ins.indexOf(e) + 1) / (ins.length + 1), y1 = t.y;
+    const dy = (y1 - y0) / 2, sw = 1.5 + 4.5 * e.amount / maxA;
+    const dad = node(e.from).dad || node(e.to).dad;
+    paths += `<path d="M${x0},${y0} C${x0},${y0 + dy} ${x1},${y1 - dy} ${x1},${y1}" fill="none" stroke="${dad ? 'var(--warn)' : 'var(--muted)'}" stroke-opacity=".75" stroke-width="${sw}" ${dad ? 'stroke-dasharray="5 3"' : ''}/>`;
+    const txt = eur(e.amount), lw = txt.length * 5.6 + 8, lh = 14;
+    const bz = tt => { const u = 1 - tt; return [u*u*u*x0 + 3*u*u*tt*x0 + 3*u*tt*tt*x1 + tt*tt*tt*x1, u*u*u*y0 + 3*u*u*tt*(y0 + dy) + 3*u*tt*tt*(y1 - dy) + tt*tt*tt*y1]; };
+    let best = null;
+    for (const tt of [.5, .38, .62, .28, .72, .2, .8]) { const [bx, by] = bz(tt), b = {x: bx - lw/2, y: by - lh/2, w: lw, h: lh}; if (!overlap(b)) { best = b; break; } best ??= b; }
+    placed.push(best);
+    labels += `<rect x="${best.x}" y="${best.y}" width="${lw}" height="${lh}" rx="7" fill="var(--surface)" stroke="var(--border)"/><text x="${best.x + lw/2}" y="${best.y + 10.5}" text-anchor="middle" class="num">${txt}</text>`;
+  }
+  let nodes = '';
+  for (const id of ids) {
+    const n = node(id), q = pos[id], a = acc(id), chars = Math.floor(q.w / 5.8);
+    const name = n.name.length > chars ? n.name.slice(0, chars - 1) + '…' : n.name;
+    const left = a && a.role !== 'spending' && a.group === 'cash' ? p.bal[id].in - p.bal[id].out : null;
+    const fill = n.kind === 'income' ? 'color-mix(in srgb,var(--good) 14%,var(--surface))' : n.kind === 'expense' ? 'var(--surface-2)' : 'var(--surface)';
+    nodes += `<g><rect x="${q.x}" y="${q.y}" width="${q.w}" height="${nodeH}" rx="8" fill="${fill}" stroke="${n.dad ? 'var(--warn)' : 'var(--border)'}" ${n.dad ? 'stroke-dasharray="4 3"' : ''}/>
+      ${a ? `<rect x="${q.x}" y="${q.y + 6}" width="3" height="${nodeH - 12}" rx="1.5" fill="${color(a)}"/>` : ''}
+      <text x="${q.cx}" y="${q.y + (left != null ? 16 : 23)}" text-anchor="middle" font-weight="600">${esc(name)}</text>
+      ${left != null && a.role !== 'savings' ? `<text x="${q.cx}" y="${q.y + 30}" text-anchor="middle" class="num" style="fill:${left < -0.004 ? 'var(--crit-text)' : 'var(--text-2)'}">left ${eur(left)}</text>` : ''}
+      ${left != null && a.role === 'savings' ? `<text x="${q.cx}" y="${q.y + 30}" text-anchor="middle" class="num" style="fill:var(--good-text)">+${eur(p.bal[id].in - p.bal[id].out)}</text>` : ''}</g>`;
+  }
+  return `<div class="flow"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Diagram of the transfers on the 1st of the month">${paths}${nodes}${labels}</svg></div>`;
+}
+
+function viewFlows(){
+  const p = plan(), ratio = (+S.settings.sharesRatio || 0) / 100;
+  let h = `<p class="sub" style="margin:4px 0 0">All transfers happen on the 1st of the month. Tap a line to edit it.</p>`;
+  h += `<div class="card"><h2>Monthly plan</h2>
+    <div class="row"><span>Your income</span><b class="num">${eur(p.income, 1)}</b></div>
+    ${p.dadIn ? `<div class="row"><span>Dad's repayments</span><span class="num">${eur(p.dadIn, 1)}</span></div>` : ''}
+    <div class="row"><span>Spending &amp; fixed costs</span><span class="num">−${eur(p.spending, 1)}</span></div>
+    <div class="row" style="border-top:1px solid var(--border);padding-top:6px"><b>Can be saved</b><b class="num ${p.capacity >= 0 ? 'up' : 'down'}">${eur(p.capacity, 1)}</b></div>
+    <div style="margin-top:10px" class="sub">Where it goes today</div>
+    <div class="row"><span><i class="sw" style="background:var(--s6)"></i> Shares</span><span class="num">${eur(p.toStocks, 1)}</span></div>
+    <div class="row"><span><i class="sw" style="background:var(--s4)"></i> Savings accounts</span><span class="num">${eur(p.toSavings, 1)}</span></div>
+    <div class="row"><span><i class="sw" style="background:var(--s1)"></i> Stays on checking</span><span class="num ${p.checkingLeft < 0 ? 'down' : ''}">${eur(p.checkingLeft, 1)}</span></div>
+    ${p.capacity > 0 ? `<div class="tip" style="margin-top:10px"><div>Your ${Math.round(ratio*100)}/${100 - Math.round(ratio*100)} split would be <b class="num">${eur(p.capacity*ratio)}</b> to shares and <b class="num">${eur(p.capacity*(1-ratio))}</b> to savings each month.</div></div>` : ''}
+  </div>`;
+  h += `<div class="card"><h2>Diagram</h2>${flowDiagram()}
+    <div class="legend"><span><i class="sw" style="background:color-mix(in srgb,var(--good) 30%,var(--surface))"></i>Income</span><span><i class="sw" style="background:var(--surface-2);border:1px solid var(--border)"></i>Expense</span><span><i class="ln" style="border-color:var(--warn)"></i>Paid for / by Dad</span></div></div>`;
+  const ids = [...new Set(S.flows.map(f => f.from))].filter(node).sort((a, b) => (node(a).kind === 'income') - (node(b).kind === 'income'));
+  for (const id of ids) {
+    const a = acc(id), out = S.flows.filter(f => f.from === id), inc = S.flows.filter(f => f.to === id);
+    const left = a ? p.bal[id].in - p.bal[id].out : null;
+    h += `<div class="card"><div class="row"><h3>${esc(nodeName(id))}</h3>${a ? `<span class="num sub">in ${eur(p.bal[id].in, 1)}</span>` : ''}</div><ul class="list" style="margin-top:6px">` +
+      out.map(f => `<li data-action="editFlow" data-id="${f.id}" style="cursor:pointer"><div class="grow"><div>→ ${esc(nodeName(f.to))}</div>${f.label ? `<div class="sub">${esc(f.label)}</div>` : ''}</div><span class="num">${eur(+f.amount, 1)}</span><span class="muted">›</span></li>`).join('') +
+      `</ul>${a && a.role === 'checking' ? `<div class="row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span>Left on account</span><b class="num ${left < -0.004 ? 'down' : ''}">${eur(left, 1)}</b></div>${left < -0.004 ? `<div class="sub ko" style="margin-top:4px">Short by ${eur(-left, 1)} each month. Raise a transfer into ${esc(a.name)}.</div>` : ''}` : ''}</div>`;
+  }
+  h += `<div class="btns"><button class="btn primary" data-action="addFlow">+ Add transfer</button><button class="btn" data-action="addParty">+ Income / expense</button></div>`;
+  return h;
+}
+
+function viewDreams(){
+  const {out, order} = dreamProgress();
+  let h = `<p class="sub" style="margin:4px 0 0">Dreams are funded in deadline order: the earliest dream takes from its accounts first, so the same euro is never counted twice.</p>`;
+  if (!order.length) h += `<div class="card empty">No dreams yet.</div>`;
+  for (const d of order) {
+    const r = out[d.id];
+    h += `<div class="card" data-action="editDream" data-id="${d.id}" style="cursor:pointer"><div class="row"><h3>${esc(d.name)}</h3><span class="sub">${d.deadline ? mLabel(d.deadline, true) : 'No deadline'} ›</span></div>
+      <div class="row" style="margin-top:8px"><span class="hero num" style="font-size:24px">${Math.round(r.pct*100)}%</span><span class="num">${eur(r.got)} / ${eur(d.target)}</span></div>
+      <div class="bar ${r.pct >= 1 ? 'good' : ''}"><i style="width:${Math.min(100, r.pct*100)}%"></i></div>
+      <div class="sub">${r.left <= 0 ? '<span class="ok">✓ Funded</span>' : `${eur(r.left)} to go${r.perMonth != null ? ` · <b>${eur(r.perMonth)}/month</b> for ${r.months} months` : ''}`}</div>
+      <div style="margin-top:6px">${(d.accounts || []).map(id => `<span class="chip">${esc(nodeName(id))}</span>`).join('')}</div></div>`;
+  }
+  return h + `<button class="btn primary" data-action="addDream">+ Add dream</button>`;
+}
+
+function viewOwed(){
+  const owed = owedNow(), unpaid = S.owed.items.filter(i => !i.received).sort((a, b) => a.month.localeCompare(b.month));
+  const paid = S.owed.items.filter(i => i.received).sort((a, b) => b.month.localeCompare(a.month));
+  const monthly = S.owed.recurring.filter(r => !r.endMonth || r.endMonth >= ym(today())).reduce((s, r) => s + (+r.amount || 0), 0);
+  const withD = plan(true), noD = plan(false);
+  const ms = snapMonths(), cash = ms.length ? totalsAt(ms[ms.length-1]).cash : 0;
+  const self = noD.capacity >= 0;
+  let h = `<div class="card"><h2>Dad owes me</h2><div class="hero num">${eur(owed, 1)}</div>
+    <div class="sub">${unpaid.length} payment${unpaid.length === 1 ? '' : 's'} waiting${monthly ? ` · you advance ${eur(monthly, 1)} every month` : ''}</div>
+    <div class="btns"><button class="btn primary" data-action="repay">Record a repayment</button><button class="btn" data-action="addOwed">+ Advance</button></div></div>`;
+  h += `<div class="card"><h2>If Dad's repayments stop</h2>
+    <div class="row"><span>Saveable per month today</span><span class="num">${eur(withD.capacity, 1)}</span></div>
+    <div class="row"><span>Without his repayments</span><b class="num ${self ? 'up' : 'down'}">${eur(noD.capacity, 1)}</b></div>
+    <div style="margin-top:8px">${self
+      ? `<span class="ok">✓ You stay self-sufficient.</span> <span class="sub">You'd still save ${eur(noD.capacity)}/month, ${withD.capacity > 0 ? Math.round(noD.capacity / withD.capacity * 100) + '% of today' : ''}.</span>`
+      : `<span class="ko">✕ Not self-sufficient.</span> <span class="sub">You'd lose ${eur(-noD.capacity)}/month. Your cash (${eur(cash)}) lasts about ${Math.floor(cash / -noD.capacity)} months.</span>`}</div>
+    ${Object.entries(noD.bal).filter(([id, b]) => acc(id)?.role === 'checking' && b.in - b.out < -0.004).map(([id, b]) => `<div class="sub ko" style="margin-top:6px">${esc(nodeName(id))} would be short ${eur(b.out - b.in, 1)}/month: raise the transfer into it.</div>`).join('')}
+  </div>`;
+  if (S.owed.recurring.length) h += `<div class="card"><h2>Recurring advances</h2><ul class="list">` + S.owed.recurring.map(r => `<li data-action="editRec" data-id="${r.id}" style="cursor:pointer"><div class="grow"><div class="name">${esc(r.label)}</div><div class="sub">since ${mLabel(r.startMonth)}${r.endMonth ? ' until ' + mLabel(r.endMonth) : ''}</div></div><span class="num">${eur(+r.amount, 1)}/mo</span><span class="muted">›</span></li>`).join('') + `</ul><button class="btn small" data-action="addRec" style="margin-top:8px">+ Recurring advance</button></div>`;
+  else h += `<button class="btn small" data-action="addRec">+ Recurring advance</button>`;
+  const item = i => `<li><input type="checkbox" ${i.received ? 'checked' : ''} data-action="toggleOwed" data-id="${i.id}" aria-label="Received" style="width:22px;height:22px;accent-color:var(--good)"><div class="grow" data-action="editOwed" data-id="${i.id}" style="cursor:pointer"><div class="name">${esc(i.label)}</div><div class="sub">${mLabel(i.month)}${i.received ? ' · received ' + mLabel(i.receivedOn || i.month) : i.expectedMonth ? ' · expected ' + mLabel(i.expectedMonth) : ''}</div></div><span class="num">${eur(i.amount, 1)}</span></li>`;
+  h += `<div class="card"><h2>Waiting (${unpaid.length})</h2>${unpaid.length ? `<ul class="list">${unpaid.map(item).join('')}</ul>` : '<div class="sub">Nothing owed. 🎉</div>'}</div>`;
+  if (paid.length) h += `<div class="card"><details><summary>Received (${paid.length})</summary><ul class="list">${paid.map(item).join('')}</ul></details></div>`;
+  return h;
+}
+
+function viewSettings(){
+  const lb = S.settings.lastBackup;
+  return `<div class="card"><h2>Backup</h2><div class="sub">Last backup: ${lb ? new Date(lb).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}) : 'never'}. Save backups to iCloud Drive.</div>
+      <div class="btns"><button class="btn primary" data-action="backup">Export backup (.json)</button><button class="btn" data-action="excel">Export Excel</button><button class="btn" data-action="import">Import backup</button></div></div>
+    <div class="card"><h2>Monthly target</h2>
+      <div class="row"><span>Target</span><b class="num">${eur(target())}/month</b></div>
+      <div class="sub">${S.settings.targetMode === 'auto' ? 'Automatic: everything your flows leave after spending.' : 'Set by hand.'} Shares ${S.settings.sharesRatio}% / savings ${100 - S.settings.sharesRatio}%.</div>
+      <div class="btns"><button class="btn small" data-action="editTarget">Change</button></div></div>
+    <div class="card"><h2>Accounts</h2><ul class="list">${S.accounts.map(a => `<li data-action="editAccount" data-id="${a.id}" style="cursor:pointer"><i class="sw" style="background:${color(a)}"></i><div class="grow"><div class="name">${esc(a.name)}${a.archived ? ' <span class="chip">closed</span>' : ''}</div><div class="sub">${GROUPS[a.group]} · ${ROLES[a.role] || ''}${a.cap ? ' · cap ' + eur(a.cap) : ''}</div></div><span class="muted">›</span></li>`).join('')}</ul>
+      <button class="btn small" data-action="addAccount" style="margin-top:8px">+ Account</button></div>
+    <div class="card"><h2>Income &amp; expenses</h2><ul class="list">${S.parties.map(p => `<li data-action="editParty" data-id="${p.id}" style="cursor:pointer"><div class="grow"><div class="name">${esc(p.name)}</div><div class="sub">${p.kind === 'income' ? 'Income' : 'Expense'}${p.dad ? ' · Dad' : ''}</div></div><span class="muted">›</span></li>`).join('')}</ul>
+      <button class="btn small" data-action="addParty" style="margin-top:8px">+ Income / expense</button></div>
+    <div class="card"><h2>Danger zone</h2><button class="btn danger" data-action="reset">Erase all data on this phone</button></div>
+    <p class="sub" style="text-align:center">Your data never leaves this phone unless you export it.</p>`;
+}
+
+/* ---------- router ---------- */
+const VIEWS = {home:['Home', viewHome], savings:['Savings', viewSavings], flows:['Flows', viewFlows], dreams:['Dreams', viewDreams], owed:['Owed to me', viewOwed], settings:['Settings', viewSettings]};
+function route(){ const r = location.hash.slice(1); return VIEWS[r] ? r : 'home'; }
+function render(){
+  if (!S) return renderWelcome();
+  materialize();
+  const r = route(), [title, fn] = VIEWS[r];
+  $('#title').textContent = title;
+  $('#app').innerHTML = fn();
+  document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === r));
+  $('#tabs').style.display = '';
+}
+function renderWelcome(){
+  $('#title').textContent = 'Savings';
+  $('#tabs').style.display = 'none';
+  $('#app').innerHTML = `<div class="welcome"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V13M10 20V9M16 20V5M22 20H2"/></svg>
+    <h1>Welcome</h1><p class="sub">Track your balances once a month. Everything stays on this phone.</p>
+    <div class="btns" style="flex-direction:column"><button class="btn primary block" data-action="import">Import a backup (.json)</button><button class="btn block" data-action="startEmpty">Start from scratch</button></div></div>`;
+}
+addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
+
+/* ---------- sheets & forms ---------- */
+function openSheet(title, body, {onSave, saveLabel = 'Save', cancelLabel = 'Cancel'} = {}){
+  const sh = $('#sheet');
+  sh.innerHTML = `<header><button data-sheet="cancel">${cancelLabel}</button><b>${esc(title)}</b>${onSave ? `<button data-sheet="save">${saveLabel}</button>` : '<span style="min-width:60px"></span>'}</header><div class="body">${body}</div>`;
+  sh._onSave = onSave;
+  sh.classList.add('open'); $('#sheetBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){ $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); document.body.style.overflow = ''; }
+$('#sheet').addEventListener('click', e => {
+  const b = e.target.closest('[data-sheet]'); if (!b) return;
+  if (b.dataset.sheet === 'cancel') return closeSheet();
+  const sh = $('#sheet'); if (sh._onSave && sh._onSave(sh) !== false) { closeSheet(); render(); }
+});
+$('#sheetBg').addEventListener('click', closeSheet);
+
+function fieldHTML(f, v){
+  const hint = f.hint ? `<div class="hint">${f.hint}</div>` : '';
+  if (f.type === 'select') return `<label class="field"><span>${f.label}</span><select name="${f.key}">${f.options.map(o => `<option value="${esc(o.v)}" ${String(o.v) === String(v ?? '') ? 'selected' : ''}>${esc(o.l)}</option>`).join('')}</select>${hint}</label>`;
+  if (f.type === 'multi') return `<div class="field"><span>${f.label}</span><div class="checks">${f.options.map(o => `<label><input type="checkbox" name="${f.key}" value="${esc(o.v)}" ${(v || []).includes(o.v) ? 'checked' : ''}>${esc(o.l)}</label>`).join('')}</div>${hint}</div>`;
+  if (f.type === 'check') return `<label class="check"><input type="checkbox" name="${f.key}" ${v ? 'checked' : ''}><span>${f.label}</span></label>${hint}`;
+  const type = f.type === 'month' ? 'month' : 'text', im = f.type === 'number' ? 'inputmode="decimal"' : '';
+  return `<label class="field"><span>${f.label}</span><input type="${type}" ${im} name="${f.key}" value="${esc(v ?? '')}" placeholder="${esc(f.placeholder || '')}" autocomplete="off">${hint}</label>`;
+}
+function openForm({title, fields, value = {}, onSave, onDelete, deleteLabel = 'Delete'}){
+  const body = fields.map(f => fieldHTML(f, value[f.key])).join('') + (onDelete ? `<button class="btn danger block" data-del style="margin-top:20px">${deleteLabel}</button>` : '');
+  openSheet(title, body, {onSave: sh => {
+    const vals = {};
+    for (const f of fields) {
+      if (f.type === 'multi') vals[f.key] = [...sh.querySelectorAll(`[name="${f.key}"]:checked`)].map(i => i.value);
+      else if (f.type === 'check') vals[f.key] = sh.querySelector(`[name="${f.key}"]`).checked;
+      else { const raw = sh.querySelector(`[name="${f.key}"]`).value.trim(); vals[f.key] = f.type === 'number' ? num(raw) : raw; }
+      if (f.required && (vals[f.key] == null || vals[f.key] === '')) { alert(`"${f.label}" is required.`); return false; }
+    }
+    onSave(vals); save();
+  }});
+  if (onDelete) $('#sheet [data-del]').addEventListener('click', () => { if (confirm('Delete this?')) { onDelete(); save(); closeSheet(); render(); } });
+}
+
+/* monthly update: the 2-minute screen */
+function openUpdate(month){
+  month ||= defaultUpdateMonth();
+  const draw = () => {
+    const accs = activeAccounts().sort((a, b) => (a.group === 'alstom') - (b.group === 'alstom'));
+    const snap = S.snapshots[month] || {};
+    const rows = accs.map(a => {
+      const prev = lastValue(a, month), cur = snap[a.id], v = cur ?? prev;
+      return `<li><i class="sw" style="background:${color(a)}"></i><div class="grow"><div class="name">${esc(a.name)}</div><div class="sub">${a.group === 'alstom' ? 'Yearly · leave as is if unchanged' : prev != null ? 'last ' + eur(prev, 1) : 'no previous value'}</div></div>
+        <input data-acc="${a.id}" inputmode="decimal" value="${v != null ? String(v).replace('.', ',') : ''}" placeholder="0" aria-label="${esc(a.name)} balance" autocomplete="off"></li>`;
+    }).join('');
+    openSheet(mLabel(month, true), `
+      <div class="month-pick"><button class="btn small" data-m="-1" aria-label="Previous month">‹</button><b>Balances at end of ${ML[+month.slice(5)-1]}</b><button class="btn small" data-m="1" aria-label="Next month">›</button></div>
+      <p class="sub" style="margin:0">Pre-filled with last month. Only change what moved.</p>
+      <ul class="list upd">${rows}</ul>
+      <div class="card" style="margin-top:8px"><div class="row"><span>Total (without Alstom)</span><b class="num" id="updTotal"></b></div><div class="row sub"><span>Change</span><span class="num" id="updDelta"></span></div></div>
+      ${hasSnap(month) ? `<button class="btn danger block" data-clear style="margin-top:12px">Clear ${mLabel(month)}</button>` : ''}`,
+      {onSave: sh => {
+        const s = {};
+        sh.querySelectorAll('[data-acc]').forEach(i => { const v = num(i.value); if (v != null) s[i.dataset.acc] = v; });
+        for (const a of S.accounts.filter(a => a.archived)) if (S.snapshots[month]?.[a.id] != null) s[a.id] = S.snapshots[month][a.id];
+        S.snapshots[month] = s; save();
+        setTimeout(afterUpdate, 50);
+      }});
+    const sh = $('#sheet');
+    const prevM = snapMonths().filter(m => m < month).pop(), prevT = prevM ? totalsAt(prevM).liquid : null;
+    const recalc = () => {
+      let t = 0; sh.querySelectorAll('[data-acc]').forEach(i => { if (acc(i.dataset.acc).group !== 'alstom') t += num(i.value) || 0; });
+      $('#updTotal').textContent = eur(t, 1);
+      $('#updDelta').textContent = prevT != null ? signed(t - prevT, 1) + ' vs ' + mLabel(prevM) : '–';
+    };
+    sh.querySelectorAll('[data-acc]').forEach(i => { i.addEventListener('input', recalc); i.addEventListener('focus', () => setTimeout(() => i.select(), 0)); });
+    sh.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { month = addM(month, +b.dataset.m); draw(); }));
+    sh.querySelector('[data-clear]')?.addEventListener('click', () => { if (confirm(`Remove all balances for ${mLabel(month, true)}?`)) { delete S.snapshots[month]; save(); closeSheet(); render(); } });
+    recalc();
+  };
+  draw();
+}
+function afterUpdate(){
+  const ms = snapMonths(), m = ms[ms.length-1], sv = m ? savedFor(m) : null, owed = owedNow();
+  openSheet('Saved ✓', `<div class="welcome" style="padding:24px 0">
+      <div class="hero num">${sv ? signed(sv.total) : eur(m ? totalsAt(m).net : 0)}</div>
+      <p class="sub">${sv ? `saved since ${mLabel(sv.from)} (target ${eur(target() * sv.gap)})` : 'Net worth'}</p>
+      ${owed > 0 ? `<div class="card" style="text-align:left"><div class="row"><span>Dad still owes</span><b class="num">${eur(owed, 1)}</b></div><div class="sub">Did he pay something back?</div><div class="btns"><button class="btn small" data-action="repay">Record a repayment</button></div></div>` : ''}
+      <p>Now save a backup to iCloud Drive (Files → iCloud Drive).</p>
+      <button class="btn primary block" data-action="backup">Export backup</button></div>`, {cancelLabel: 'Done'});
+}
+function openRepay(){
+  openForm({title:'Repayment from Dad', fields:[
+    {key:'amount', label:'Amount received (€)', type:'number', required:true, hint:'Applied to the oldest unpaid advances first.'},
+    {key:'month', label:'Received in', type:'month'}], value:{month: ym(today())},
+    onSave: v => {
+      let rem = v.amount; const on = v.month || ym(today());
+      for (const i of S.owed.items.filter(i => !i.received).sort((a, b) => a.month.localeCompare(b.month))) {
+        if (rem <= 0.004) break;
+        if (rem >= i.amount - 0.004) { i.received = true; i.receivedOn = on; rem -= i.amount; }
+        else { S.owed.items.push({...i, id:uid(), amount: Math.round(rem*100)/100, received:true, receivedOn:on}); i.amount = Math.round((i.amount - rem)*100)/100; rem = 0; }
+      }
+      toast(rem > 0.004 ? `Recorded. ${eur(rem, 1)} more than owed.` : 'Repayment recorded');
+    }});
+}
+
+/* ---------- backup / excel ---------- */
+async function shareFile(blob, name){
+  const file = new File([blob], name, {type: blob.type});
+  if (navigator.canShare && navigator.canShare({files:[file]})) {
+    try { await navigator.share({files:[file]}); return true; }
+    catch(e){ if (e.name === 'AbortError') return false; }
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return true;
+}
+async function backup(){
+  const d = new Date(), name = `savings-backup-${ym(d)}-${pad(d.getDate())}.json`;
+  const ok = await shareFile(new Blob([JSON.stringify(S, null, 1)], {type:'application/json'}), name);
+  if (ok) { S.settings.lastBackup = new Date().toISOString(); save(); closeSheet(); render(); toast('Backup exported'); }
+}
+let xlsxP = null;
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve();
+  return xlsxP ||= new Promise((res, rej) => { const s = document.createElement('script'); s.src = XLSX_URL; s.onload = res; s.onerror = () => { xlsxP = null; rej(new Error('Excel library not available offline yet. Open the app once with internet.')); }; document.head.appendChild(s); });
+}
+async function exportExcel(){
+  try { await loadXLSX(); } catch(e){ return alert(e.message); }
+  const wb = XLSX.utils.book_new(), ms = snapMonths();
+  const bal = ms.map(m => { const r = {Month: mLabel(m, true)}; S.accounts.forEach(a => r[a.name] = S.snapshots[m]?.[a.id] ?? ''); const t = totalsAt(m), sv = savedFor(m);
+    return Object.assign(r, {Cash:t.cash, Stocks:t.stocks, Alstom:t.alstom, 'Net worth':t.net, 'Owed to me':owedAt(m), 'Saved vs previous':sv ? Math.round(sv.total*100)/100 : ''}); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bal), 'Balances');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.flows.map(f => ({Day:1, From:nodeName(f.from), To:nodeName(f.to), Label:f.label || '', Amount:+f.amount}))), 'Flows (1st of month)');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.owed.items.map(i => ({Advance:i.label, Month:mLabel(i.month, true), Amount:i.amount, Received:i.received ? 'Yes' : 'No', 'Received in':i.received ? mLabel(i.receivedOn || i.month, true) : ''}))), 'Owed to me');
+  const {out} = dreamProgress();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.dreams.map(d => ({Dream:d.name, Target:d.target, Deadline:d.deadline || '', Accounts:(d.accounts || []).map(nodeName).join(', '), Funded:Math.round(out[d.id].got), Progress:Math.round(out[d.id].pct*100) + '%'}))), 'Dreams');
+  const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  if (await shareFile(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `savings-${ym(today())}.xlsx`)) toast('Excel exported');
+}
+$('#importFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.accounts) || typeof d.snapshots !== 'object') throw new Error('This is not a savings backup file.');
+    if (S && !confirm('Replace everything on this phone with this backup?')) return;
+    S = normalize(d); save(); location.hash = '#home'; render(); toast('Backup imported');
+  } catch(err){ alert('Import failed: ' + err.message); }
+});
+
+/* ---------- actions ---------- */
+const accountOpts = (filter = () => true) => S.accounts.filter(filter).map(a => ({v:a.id, l:a.name + (a.archived ? ' (closed)' : '')}));
+const nodeOpts = () => [...S.parties.filter(p => p.kind === 'income').map(p => ({v:p.id, l:'Income · ' + p.name})), ...S.accounts.filter(a => !a.archived).map(a => ({v:a.id, l:a.name})), ...S.parties.filter(p => p.kind === 'expense').map(p => ({v:p.id, l:'Expense · ' + p.name}))];
+function flowForm(f){
+  openForm({title: f ? 'Edit transfer' : 'New transfer', value: f || {},
+    fields:[{key:'from', label:'From', type:'select', options:nodeOpts()}, {key:'to', label:'To', type:'select', options:nodeOpts()},
+      {key:'amount', label:'Amount (€)', type:'number', required:true}, {key:'label', label:'Note (optional)', placeholder:'e.g. phone + health insurance'}],
+    onSave: v => { if (v.from === v.to) { alert('From and To must differ.'); return false; } f ? Object.assign(f, v) : S.flows.push({id:uid(), ...v}); },
+    onDelete: f && (() => S.flows = S.flows.filter(x => x !== f))});
+}
+function accountForm(a){
+  const used = new Set(S.accounts.map(x => x.color));
+  openForm({title: a ? 'Edit account' : 'New account', value: a || {group:'cash', role:'savings', color: [1,2,3,4,5,6,7,8].find(c => !used.has(c)) || 1},
+    fields:[{key:'name', label:'Name', required:true}, {key:'group', label:'Counts as', type:'select', options:Object.entries(GROUPS).map(([v, l]) => ({v, l}))},
+      {key:'role', label:'Type', type:'select', options:Object.entries(ROLES).map(([v, l]) => ({v, l}))},
+      {key:'cap', label:'Cap (€, optional)', type:'number', hint:'e.g. Livret Jeune 1,600 · LDDS 12,000'},
+      {key:'color', label:'Color', type:'select', options:['Blue','Orange','Aqua','Yellow','Magenta','Green','Violet','Red'].map((l, i) => ({v:i + 1, l}))},
+      {key:'archived', label:'Account closed (keep its history)', type:'check'}],
+    onSave: v => { v.color = +v.color; if (a) Object.assign(a, v); else S.accounts.push({id:uid(), ...v}); },
+    onDelete: a && (() => { if (S.flows.some(f => f.from === a.id || f.to === a.id)) { alert('Remove its transfers first, or mark it closed.'); return; } S.accounts = S.accounts.filter(x => x !== a); })});
+}
+function partyForm(p){
+  openForm({title: p ? 'Edit' : 'New income / expense', value: p || {kind:'expense'},
+    fields:[{key:'name', label:'Name', required:true}, {key:'kind', label:'Type', type:'select', options:[{v:'income', l:'Income (money comes in)'}, {v:'expense', l:'Expense (money goes out)'}]},
+      {key:'dad', label:'Related to Dad (repayment from him, or a cost you pay for him)', type:'check'}],
+    onSave: v => p ? Object.assign(p, v) : S.parties.push({id:uid(), ...v}),
+    onDelete: p && (() => { S.parties = S.parties.filter(x => x !== p); S.flows = S.flows.filter(f => f.from !== p.id && f.to !== p.id); })});
+}
+function dreamForm(d){
+  openForm({title: d ? 'Edit dream' : 'New dream', value: d || {accounts: S.accounts.filter(a => a.role === 'savings' && !a.archived).map(a => a.id)},
+    fields:[{key:'name', label:'Name', required:true}, {key:'target', label:'Target (€)', type:'number', required:true}, {key:'deadline', label:'Deadline', type:'month'},
+      {key:'accounts', label:'Accounts that count toward it', type:'multi', options:accountOpts(a => !a.archived)}],
+    onSave: v => d ? Object.assign(d, v) : S.dreams.push({id:uid(), ...v}),
+    onDelete: d && (() => S.dreams = S.dreams.filter(x => x !== d))});
+}
+function owedForm(i){
+  openForm({title: i ? 'Edit advance' : 'New advance', value: i || {month: ym(today())},
+    fields:[{key:'label', label:'What for', required:true}, {key:'amount', label:'Amount (€)', type:'number', required:true}, {key:'month', label:'Advanced in', type:'month', required:true},
+      {key:'expectedMonth', label:'Expected back by', type:'month'}, {key:'received', label:'Received', type:'check'}],
+    onSave: v => { if (v.received && !(i?.receivedOn)) v.receivedOn = ym(today()); i ? Object.assign(i, v) : S.owed.items.push({id:uid(), ...v}); },
+    onDelete: i && (() => S.owed.items = S.owed.items.filter(x => x !== i))});
+}
+function recForm(r){
+  openForm({title: r ? 'Recurring advance' : 'New recurring advance', value: r || {startMonth: ym(today())},
+    fields:[{key:'label', label:'What for', required:true}, {key:'amount', label:'Amount per month (€)', type:'number', required:true},
+      {key:'startMonth', label:'First month not repaid', type:'month', required:true}, {key:'endMonth', label:'Last month (empty = ongoing)', type:'month', hint:'Set this when Dad starts repaying automatically.'}],
+    onSave: v => { r ? Object.assign(r, v) : S.owed.recurring.push({id:uid(), ...v}); materialize(); },
+    deleteLabel:'Delete (keeps past advances)', onDelete: r && (() => S.owed.recurring = S.owed.recurring.filter(x => x !== r))});
+}
+
+const ACTIONS = {
+  update: d => openUpdate(d.month),
+  settings: () => { location.hash = '#settings'; },
+  backup: () => backup(),
+  excel: () => exportExcel(),
+  import: () => $('#importFile').click(),
+  startEmpty: () => { S = DEFAULT_STATE(); save(); render(); },
+  hideTip: () => { S.settings.hideInstallTip = true; save(); render(); },
+  chartRange: d => { chartRange = +d.r; render(); },
+  addFlow: () => flowForm(), editFlow: d => flowForm(S.flows.find(f => f.id === d.id)),
+  addParty: () => partyForm(), editParty: d => partyForm(party(d.id)),
+  addAccount: () => accountForm(), editAccount: d => accountForm(acc(d.id)),
+  addDream: () => dreamForm(), editDream: d => dreamForm(S.dreams.find(x => x.id === d.id)),
+  addOwed: () => owedForm(), editOwed: d => owedForm(S.owed.items.find(x => x.id === d.id)),
+  addRec: () => recForm(), editRec: d => recForm(S.owed.recurring.find(x => x.id === d.id)),
+  repay: () => openRepay(),
+  toggleOwed: (d, el) => { const i = S.owed.items.find(x => x.id === d.id); i.received = el.checked; i.receivedOn = el.checked ? ym(today()) : undefined; save(); render(); },
+  editTarget: () => openForm({title:'Monthly target', value:{...S.settings, ratio:S.settings.sharesRatio},
+    fields:[{key:'targetMode', label:'Target', type:'select', options:[{v:'auto', l:`Automatic (${eur(Math.max(0, plan().capacity))}/month from your flows)`}, {v:'manual', l:'Set by hand'}]},
+      {key:'target', label:'Manual target (€/month)', type:'number'}, {key:'ratio', label:'Share of the target going to shares (%)', type:'number'},
+      {key:'goalStart', label:'Target line starts in', type:'month', hint:'The chart target line grows from your balance this month.'}],
+    onSave: v => Object.assign(S.settings, {targetMode:v.targetMode, target:v.target || 0, sharesRatio:Math.min(100, Math.max(0, v.ratio ?? 50)), goalStart:v.goalStart || null})}),
+  reset: () => { if (confirm('Erase ALL data on this phone? Export a backup first.') && confirm('Really erase everything?')) { localStorage.removeItem(KEY); S = null; location.hash = ''; render(); } }
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  if (el.type === 'checkbox' && el.dataset.action !== 'toggleOwed') return;
+  const fn = ACTIONS[el.dataset.action]; if (fn) { if (el.tagName === 'A') e.preventDefault(); fn(el.dataset, el); }
+});
+document.addEventListener('pointermove', e => { const r = e.target.closest?.('#chart [data-i]'); if (r) chartTip(+r.dataset.i); else if (!e.target.closest?.('#chart')) chartHide(); });
+document.addEventListener('pointerdown', e => { const r = e.target.closest?.('#chart [data-i]'); if (r) chartTip(+r.dataset.i); else chartHide(); });
+
+/* ---------- start ---------- */
+S = load();
+render();
+navigator.storage?.persist?.();
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js');
+setTimeout(() => loadXLSX().catch(() => {}), 3000);
+</script>
+</body>
+</html>
