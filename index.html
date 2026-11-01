@@ -105,8 +105,17 @@ header.top h1{font-size:28px;margin:0;letter-spacing:-.02em}
 .legend .ln{width:14px;height:0;border-top:2px dashed var(--text)}
 .legend .ln.trend{border-top:2px dotted var(--text-2)}
 /* flow diagram */
-.flow svg{display:block;width:100%;height:auto}
-.flow text{font-size:10px;fill:var(--text)}
+.fl-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);margin:20px 2px 4px}
+.fl-in{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
+.fl-chip{border:1px solid color-mix(in srgb,var(--good) 40%,var(--border));background:color-mix(in srgb,var(--good) 14%,var(--surface));border-radius:999px;padding:6px 12px;font-size:14px}
+.fl-chip.dad{border:1.5px dashed var(--s7);background:var(--surface)}
+.fl-arrow{text-align:center;color:var(--muted);font-size:18px;line-height:1;margin:4px 0 -6px}
+.fl-link{display:flex;justify-content:center;position:relative;margin:-4px 0}
+.fl-link::before{content:'';position:absolute;left:50%;top:0;bottom:0;border-left:2px solid var(--border)}
+.fl-link span{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:14px;font-weight:600;margin:8px 0}
+.fl-hub{margin-top:8px}
+.fl-bar{display:flex;gap:2px;height:12px;border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.fl-bar i{display:block;min-width:3px}
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
@@ -638,64 +647,49 @@ function viewSavings(){
   return h;
 }
 
-/* flows */
+/* flows: a top-to-bottom chain of accounts, so no lines ever cross */
+function flowColor(id){
+  const n = node(id);
+  if (acc(id)) return color(acc(id));
+  return n.dad ? 'var(--s7)' : 'var(--muted)';
+}
 function flowDiagram(){
-  const flows = S.flows.filter(f => node(f.from) && node(f.to) && +f.amount);
-  if (!flows.length) return '<div class="empty">No transfers yet.</div>';
-  const edges = {};
-  for (const f of flows) { const k = f.from + '>' + f.to; edges[k] ??= {from:f.from, to:f.to, amount:0}; edges[k].amount += +f.amount; }
-  const E = Object.values(edges), ids = [...new Set(flows.flatMap(f => [f.from, f.to]))];
-  const layer = {}; ids.forEach(id => layer[id] = node(id).kind === 'income' ? 0 : 1);
-  for (let it = 0; it < ids.length; it++) {
-    let ch = false;
-    for (const e of E) { if (node(e.to).kind === 'income') continue; const l = layer[e.from] + 1; if (l > layer[e.to] && l < 8) { layer[e.to] = l; ch = true; } }
-    if (!ch) break;
-  }
-  const W = 340, nodeH = 38, rowGap = 74, maxL = Math.max(...Object.values(layer));
-  const pos = {};
-  for (let L = 0; L <= maxL; L++) {
-    let row = ids.filter(id => layer[id] === L);
-    if (L > 0) {
-      const bc = id => { const src = E.filter(e => e.to === id && pos[e.from]); return src.length ? src.reduce((s, e) => s + pos[e.from].cx, 0) / src.length : W/2; };
-      row.sort((a, b) => bc(a) - bc(b));
-    }
-    const n = row.length, gap = 6, nw = Math.min(118, (W - gap*(n-1)) / n), total = n*nw + (n-1)*gap, x0 = (W - total) / 2;
-    row.forEach((id, i) => { const x = x0 + i*(nw + gap); pos[id] = {x, y: 4 + L*rowGap, w: nw, cx: x + nw/2}; });
-  }
-  const H = 4 + maxL*rowGap + nodeH + 4, maxA = Math.max(...E.map(e => e.amount)), p = plan();
-  const placed = ids.map(id => ({x: pos[id].x, y: pos[id].y, w: pos[id].w, h: nodeH}));
-  const overlap = b => placed.some(q => b.x < q.x + q.w && b.x + b.w > q.x && b.y < q.y + q.h && b.y + b.h > q.y);
-  let paths = '', labels = '';
-  const outIdx = {}, inIdx = {};
-  E.sort((a, b) => pos[a.to].cx - pos[b.to].cx);
-  for (const e of E) {
-    const s = pos[e.from], t = pos[e.to];
-    const outs = E.filter(x => x.from === e.from), ins = E.filter(x => x.to === e.to).sort((a, b) => pos[a.from].cx - pos[b.from].cx);
-    const x0 = s.x + s.w * (outs.indexOf(e) + 1) / (outs.length + 1), y0 = s.y + nodeH;
-    const x1 = t.x + t.w * (ins.indexOf(e) + 1) / (ins.length + 1), y1 = t.y;
-    const dy = (y1 - y0) / 2, sw = 1.5 + 4.5 * e.amount / maxA;
-    const dad = node(e.from).dad || node(e.to).dad;
-    paths += `<path d="M${x0},${y0} C${x0},${y0 + dy} ${x1},${y1 - dy} ${x1},${y1}" fill="none" stroke="${dad ? 'var(--warn)' : 'var(--muted)'}" stroke-opacity=".75" stroke-width="${sw}" ${dad ? 'stroke-dasharray="5 3"' : ''}/>`;
-    const txt = eur(e.amount), lw = txt.length * 5.6 + 8, lh = 14;
-    const bz = tt => { const u = 1 - tt; return [u*u*u*x0 + 3*u*u*tt*x0 + 3*u*tt*tt*x1 + tt*tt*tt*x1, u*u*u*y0 + 3*u*u*tt*(y0 + dy) + 3*u*tt*tt*(y1 - dy) + tt*tt*tt*y1]; };
-    let best = null;
-    for (const tt of [.5, .38, .62, .28, .72, .2, .8]) { const [bx, by] = bz(tt), b = {x: bx - lw/2, y: by - lh/2, w: lw, h: lh}; if (!overlap(b)) { best = b; break; } best ??= b; }
-    placed.push(best);
-    labels += `<rect x="${best.x}" y="${best.y}" width="${lw}" height="${lh}" rx="7" fill="var(--surface)" stroke="var(--border)"/><text x="${best.x + lw/2}" y="${best.y + 10.5}" text-anchor="middle" class="num">${txt}</text>`;
-  }
-  let nodes = '';
-  for (const id of ids) {
-    const n = node(id), q = pos[id], a = acc(id), chars = Math.floor(q.w / 5.8);
-    const name = n.name.length > chars ? n.name.slice(0, chars - 1) + '…' : n.name;
-    const left = a && a.role !== 'spending' && a.group === 'cash' ? p.bal[id].in - p.bal[id].out : null;
-    const fill = n.kind === 'income' ? 'color-mix(in srgb,var(--good) 14%,var(--surface))' : n.kind === 'expense' ? 'var(--surface-2)' : 'var(--surface)';
-    nodes += `<g><rect x="${q.x}" y="${q.y}" width="${q.w}" height="${nodeH}" rx="8" fill="${fill}" stroke="${n.dad ? 'var(--warn)' : 'var(--border)'}" ${n.dad ? 'stroke-dasharray="4 3"' : ''}/>
-      ${a ? `<rect x="${q.x}" y="${q.y + 6}" width="3" height="${nodeH - 12}" rx="1.5" fill="${color(a)}"/>` : ''}
-      <text x="${q.cx}" y="${q.y + (left != null ? 16 : 23)}" text-anchor="middle" font-weight="600">${esc(name)}</text>
-      ${left != null && a.role !== 'savings' ? `<text x="${q.cx}" y="${q.y + 30}" text-anchor="middle" class="num" style="fill:${left < -0.004 ? 'var(--crit-text)' : 'var(--text-2)'}">left ${eur(left)}</text>` : ''}
-      ${left != null && a.role === 'savings' ? `<text x="${q.cx}" y="${q.y + 30}" text-anchor="middle" class="num" style="fill:var(--good-text)">+${eur(p.bal[id].in - p.bal[id].out)}</text>` : ''}</g>`;
-  }
-  return `<div class="flow"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Diagram of the transfers on the 1st of the month">${paths}${nodes}${labels}</svg></div>`;
+  const valid = S.flows.filter(f => node(f.from) && node(f.to) && +f.amount);
+  if (!valid.length) return '<div class="card empty">No transfers yet.</div>';
+  // an account is a step when money leaves it, or when income lands on it
+  const hubs = [...new Set(valid.filter(f => acc(f.from) || (node(f.from).kind === 'income' && acc(f.to))).map(f => acc(f.from) ? f.from : f.to))];
+  const depth = {}; hubs.forEach(id => depth[id] = 0);
+  for (let it = 0; it < hubs.length; it++)
+    for (const f of valid) if (depth[f.from] != null && depth[f.to] != null && depth[f.to] <= depth[f.from] && depth[f.from] < 8) depth[f.to] = depth[f.from] + 1;
+  hubs.sort((a, b) => depth[a] - depth[b]);
+  const sum = fs => fs.reduce((s, f) => s + +f.amount, 0);
+  const p = plan();
+  let h = '';
+  hubs.forEach((id, k) => {
+    const a = acc(id), prev = hubs[k - 1], next = hubs[k + 1];
+    const fromPrev = prev ? valid.filter(f => f.from === prev && f.to === id) : [];
+    const ins = valid.filter(f => f.to === id && f.from !== prev);
+    if (fromPrev.length) h += `<div class="fl-link"><span class="num">↓ ${eur(sum(fromPrev), 1)}</span></div>`;
+    else if (k) h += '<div style="height:8px"></div>';
+    if (ins.length) h += `<div class="fl-in">${ins.map(f => `<button class="fl-chip ${node(f.from).dad ? 'dad' : ''}" data-action="editFlow" data-id="${f.id}">${esc(nodeName(f.from))} <b class="num">${eur(+f.amount, 1)}</b></button>`).join('')}</div><div class="fl-arrow">↓</div>`;
+    const outs = valid.filter(f => f.from === id), byDest = {};
+    outs.forEach(f => byDest[f.to] = (byDest[f.to] || 0) + +f.amount);
+    // next step first, then same destinations together, biggest first
+    outs.sort((x, y) => (y.to === next) - (x.to === next) || byDest[y.to] - byDest[x.to] || x.to.localeCompare(y.to) || y.amount - x.amount);
+    const tin = p.bal[id].in, left = tin - p.bal[id].out, base = Math.max(tin, p.bal[id].out) || 1;
+    const segs = outs.map(f => `<i style="flex:${+f.amount} 0 0;background:${flowColor(f.to)}" title="${esc(nodeName(f.to))}"></i>`).join('') +
+      (left > 0.004 ? `<i style="flex:${left} 0 0;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border)" title="Left on account"></i>` : '');
+    h += `<div class="card fl-hub" style="border-left:4px solid ${color(a)}">
+      <div class="row"><h3>${esc(a.name)}</h3><span class="num sub">in ${eur(tin, 1)}</span></div>
+      <div class="fl-bar" role="img" aria-label="How ${esc(a.name)}'s money is split">${segs}</div>
+      <ul class="list">${outs.map(f => `<li data-action="editFlow" data-id="${f.id}" style="cursor:pointer"><i class="sw" style="background:${flowColor(f.to)}"></i>
+        <div class="grow"><div>${esc(nodeName(f.to))}${f.to === next ? ' <span class="muted">↓</span>' : ''}</div>${f.label ? `<div class="sub">${esc(f.label)}</div>` : ''}</div>
+        <span class="num">${eur(+f.amount, 1)}</span><span class="sub num" style="width:34px;text-align:right">${Math.round(+f.amount / base * 100)}%</span></li>`).join('')}</ul>
+      ${a.role !== 'spending' ? `<div class="row sep"><span>Left on account</span><b class="num ${left < -0.004 ? 'down' : ''}">${eur(left, 1)}</b></div>
+      ${left < -0.004 ? `<div class="sub ko" style="margin-top:4px">Short by ${eur(-left, 1)} each month. Raise a transfer into ${esc(a.name)}.</div>` : ''}` : ''}
+    </div>`;
+  });
+  return h;
 }
 
 function viewFlows(){
@@ -712,16 +706,8 @@ function viewFlows(){
     <div class="row"><span><i class="sw" style="background:var(--s1)"></i> Stays on checking</span><span class="num ${p.checkingLeft < 0 ? 'down' : ''}">${eur(p.checkingLeft, 1)}</span></div>
     ${p.capacity > 0 ? `<div class="tip" style="margin-top:10px"><div>Your ${Math.round(ratio*100)}/${100 - Math.round(ratio*100)} split would be <b class="num">${eur(p.capacity*ratio)}</b> to shares and <b class="num">${eur(p.capacity*(1-ratio))}</b> to savings each month.</div></div>` : ''}
   </div>`;
-  h += `<div class="card"><h2>Diagram</h2>${flowDiagram()}
-    <div class="legend"><span><i class="sw" style="background:color-mix(in srgb,var(--good) 30%,var(--surface))"></i>Income</span><span><i class="sw" style="background:var(--surface-2);border:1px solid var(--border)"></i>Expense</span><span><i class="ln" style="border-color:var(--warn)"></i>Paid for / by Dad</span></div></div>`;
-  const ids = [...new Set(S.flows.map(f => f.from))].filter(node).sort((a, b) => (node(a).kind === 'income') - (node(b).kind === 'income'));
-  for (const id of ids) {
-    const a = acc(id), out = S.flows.filter(f => f.from === id), inc = S.flows.filter(f => f.to === id);
-    const left = a ? p.bal[id].in - p.bal[id].out : null;
-    h += `<div class="card"><div class="row"><h3>${esc(nodeName(id))}</h3>${a ? `<span class="num sub">in ${eur(p.bal[id].in, 1)}</span>` : ''}</div><ul class="list" style="margin-top:6px">` +
-      out.map(f => `<li data-action="editFlow" data-id="${f.id}" style="cursor:pointer"><div class="grow"><div>→ ${esc(nodeName(f.to))}</div>${f.label ? `<div class="sub">${esc(f.label)}</div>` : ''}</div><span class="num">${eur(+f.amount, 1)}</span><span class="muted">›</span></li>`).join('') +
-      `</ul>${a && a.role === 'checking' ? `<div class="row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span>Left on account</span><b class="num ${left < -0.004 ? 'down' : ''}">${eur(left, 1)}</b></div>${left < -0.004 ? `<div class="sub ko" style="margin-top:4px">Short by ${eur(-left, 1)} each month. Raise a transfer into ${esc(a.name)}.</div>` : ''}` : ''}</div>`;
-  }
+  h += `<h2 class="fl-title">Money path on the 1st</h2>${flowDiagram()}
+    <div class="legend" style="margin:4px 2px 12px"><span><i class="sw" style="background:var(--muted)"></i>Expense</span><span><i class="sw" style="background:var(--s7)"></i>Paid for / by Dad</span><span><i class="sw" style="background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border)"></i>Stays on account</span></div>`;
   h += `<div class="btns"><button class="btn primary" data-action="addFlow">+ Add transfer</button><button class="btn" data-action="addParty">+ Income / expense</button></div>`;
   return h;
 }
