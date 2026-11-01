@@ -206,7 +206,7 @@ const DEFAULT_STATE = () => ({
   parties: [{id:'salary', name:'Salary', kind:'income'}],
   flows: [], snapshots: {}, dreams: [],
   owed: {recurring: [], items: []},
-  settings: {targetMode:'auto', target:0, sharesRatio:50, goalStart:null, lastBackup:null, hideInstallTip:false, house:HOUSE_DEFAULT()}
+  settings: {targetMode:'auto', target:0, sharesRatio:50, cushionMonths:6, cushionNoDad:false, goalStart:null, lastBackup:null, hideInstallTip:false, house:HOUSE_DEFAULT()}
 });
 /* house project: older property + renovation (Lille market prices) */
 const HOUSE_DEFAULT = () => ({type:'house', priceFlat:3370, priceHouse:3540, pricesUpdated:'2026-08', discount:20, reno:'medium',
@@ -514,6 +514,8 @@ function viewHome(){
     ${owed > 0 ? `<a href="#owed" class="row" style="margin-top:10px;text-decoration:none;color:inherit"><span class="sub">Owed to me by Dad (not counted)</span><b class="num">${eur(owed)} ›</b></a>` : ''}
   </div>`;
 
+  h += cushionCard(latest);
+
   const sv = savedFor(latest), tg = target(), ratio = (+S.settings.sharesRatio || 0) / 100;
   if (sv) {
     const tgP = tg * sv.gap, pct = tgP > 0 ? Math.max(0, sv.total / tgP) : 0;
@@ -537,6 +539,35 @@ function viewHome(){
   }
 
   return h;
+}
+
+/* safety cushion: how many months of spending your cash (not stocks) covers */
+function cushion(latest){
+  const p = plan(), noDad = !!S.settings.cushionNoDad;
+  const monthly = noDad ? p.spending : p.spending - p.dadAdvance;   // Dad's costs only count if he stops repaying
+  const cash = Math.max(0, totalsAt(latest).cash), goal = +S.settings.cushionMonths || 6;
+  const months = monthly > 0 ? cash / monthly : 0, need = Math.max(0, goal * monthly - cash);
+  // recent pace: average monthly cash growth over the last 6 months of updates
+  const ms = snapMonths().filter(m => m <= latest && mDiff(m, latest) <= 6), first = ms[0];
+  const span = first ? mDiff(first, latest) : 0;
+  const recent = span > 0 ? (cash - totalsAt(first).cash) / span : null;
+  const planned = p.toSavings + Math.max(0, p.checkingLeft);
+  // fall back to the planned pace when the recent one is missing or would take more than 5 years
+  const recentOk = recent > 0 && need / recent <= 60;
+  const pace = recentOk ? recent : planned, paceFrom = recentOk ? 'recent' : 'planned';
+  const eta = need > 0 && pace > 0 ? Math.ceil(need / pace) : null;
+  return {noDad, monthly, cash, goal, months, need, pace, paceFrom, eta, recent};
+}
+function cushionCard(latest){
+  const c = cushion(latest), ok = c.need <= 0;
+  const seg = (v, l) => `<button data-action="cushionDad" data-v="${v}" class="${String(c.noDad) === v ? 'on' : ''}">${l}</button>`;
+  return `<div class="card"><div class="row"><h2 style="margin:0">Safety cushion</h2><div class="seg" role="group" aria-label="Scenario">${seg('false', 'Normal')}${seg('true', 'Without Dad')}</div></div>
+    <div class="row" style="margin-top:8px"><span class="hero num" style="font-size:28px">${c.months.toFixed(1)} <span style="font-size:16px;font-weight:600">/ ${c.goal} months</span></span>${ok ? '<span class="ok">✓ Ready</span>' : ''}</div>
+    <div class="bar ${ok ? 'good' : ''}"><i style="width:${Math.min(100, c.months / c.goal * 100)}%"></i></div>
+    <div class="sub">Cash ${eur(c.cash)} · spending ${eur(c.monthly)}/month${c.noDad ? ' incl. loan insurance' : ''}</div>
+    ${ok ? '' : `<div style="margin-top:8px">${eur(c.need)} more cash needed${c.eta ? ` · <b>${mLabel(addM(ym(today()), c.eta), true)}</b> at your ${c.paceFrom} pace (${eur(c.pace)}/month)` : ''}</div>
+      ${c.paceFrom === 'planned' && c.recent != null ? `<div class="sub" style="margin-top:4px">${c.recent > 0 ? `Your cash has grown only ${eur(c.recent)}/month lately, too slow to get there.` : `Your cash has ${c.recent < 0 ? `dropped ${eur(-c.recent)}` : 'not grown'}/month lately, so this date assumes you follow your transfer plan.`}</div>` : ''}`}
+  </div>`;
 }
 
 let chartRange = 12, CH = null;
@@ -765,6 +796,7 @@ function viewSettings(){
       <div class="btns"><button class="btn primary" data-action="backup">Export backup (.json)</button><button class="btn" data-action="excel">Export Excel</button><button class="btn" data-action="import">Import backup</button></div></div>
     <div class="card"><h2>Monthly target</h2>
       <div class="row"><span>Target</span><b class="num">${eur(target())}/month</b></div>
+      <div class="row"><span>Safety cushion goal</span><span class="num">${S.settings.cushionMonths} months</span></div>
       <div class="sub">${S.settings.targetMode === 'auto' ? 'Automatic: everything your flows leave after spending.' : 'Set by hand.'} Shares ${S.settings.sharesRatio}% / savings ${100 - S.settings.sharesRatio}%.</div>
       <div class="btns"><button class="btn small" data-action="editTarget">Change</button></div></div>
     <div class="card"><h2>House project</h2>
@@ -1030,6 +1062,7 @@ const ACTIONS = {
     ranked.forEach((x, k) => x.order = k + 1);
     save(); render();
   },
+  cushionDad: d => { S.settings.cushionNoDad = d.v === 'true'; save(); render(); },
   houseType: d => { S.settings.house.type = d.v; save(); render(); },
   houseReno: d => { S.settings.house.reno = d.v; save(); render(); },
   editHouse: () => { const h = S.settings.house;
@@ -1045,8 +1078,9 @@ const ACTIONS = {
   editTarget: () => openForm({title:'Monthly target', value:{...S.settings, ratio:S.settings.sharesRatio},
     fields:[{key:'targetMode', label:'Target', type:'select', options:[{v:'auto', l:`Automatic (${eur(Math.max(0, plan().capacity))}/month from your flows)`}, {v:'manual', l:'Set by hand'}]},
       {key:'target', label:'Manual target (€/month)', type:'number'}, {key:'ratio', label:'Share of the target going to shares (%)', type:'number'},
-      {key:'goalStart', label:'Target line starts in', type:'month', hint:'The chart target line grows from your balance this month.'}],
-    onSave: v => Object.assign(S.settings, {targetMode:v.targetMode, target:v.target || 0, sharesRatio:Math.min(100, Math.max(0, v.ratio ?? 50)), goalStart:v.goalStart || null})}),
+      {key:'goalStart', label:'Target line starts in', type:'month', hint:'The chart target line grows from your balance this month.'},
+      {key:'cushionMonths', label:'Safety cushion goal (months of spending)', type:'number', hint:'Cash only. Stocks and Alstom are not counted.'}],
+    onSave: v => Object.assign(S.settings, {targetMode:v.targetMode, target:v.target || 0, sharesRatio:Math.min(100, Math.max(0, v.ratio ?? 50)), goalStart:v.goalStart || null, cushionMonths:Math.max(1, v.cushionMonths || 6)})}),
   reset: () => { if (confirm('Erase ALL data on this phone? Export a backup first.') && confirm('Really erase everything?')) { localStorage.removeItem(KEY); S = null; location.hash = ''; render(); } }
 };
 document.addEventListener('click', e => {
