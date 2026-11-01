@@ -81,6 +81,8 @@ header.top h1{font-size:28px;margin:0;letter-spacing:-.02em}
 .banner svg{flex:none;width:22px;height:22px}
 .banner .grow{flex:1}
 .banner .btn{border-color:var(--warn);background:transparent;color:inherit}
+.banner.demo{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border-color:var(--accent);color:var(--text)}
+.banner.demo .btn{border-color:var(--accent);color:var(--accent)}
 .tip{background:var(--surface-2);border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--text-2);margin:8px 0;display:flex;gap:8px;align-items:flex-start}
 .list{list-style:none;margin:0;padding:0}
 .list li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
@@ -483,6 +485,7 @@ function houseBlock(d, r, full){
 const ICON_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17.5v.01"/></svg>';
 
 function banner(){
+  if (S.demo) return '';               // the demo banner replaces the reminders
   const m = dueMonth();
   let h = '';
   if (m) h += `<div class="banner">${ICON_WARN}<div class="grow"><b>${ML[+m.slice(5)-1]} isn't updated yet</b><div class="sub" style="color:inherit">Takes 2 minutes.</div></div><button class="btn small" data-action="update" data-month="${m}">Update</button></div>`;
@@ -822,7 +825,8 @@ function render(){
   materialize();
   const r = route(), [title, fn] = VIEWS[r];
   $('#title').textContent = title;
-  $('#app').innerHTML = fn();
+  const demo = S.demo ? `<div class="banner demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></svg><div class="grow"><b>Demo mode</b><div class="sub" style="color:inherit">Fictional data. Feel free to try everything.</div></div><button class="btn small" data-action="exitDemo">Exit demo</button></div>` : '';
+  $('#app').innerHTML = demo + fn();
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === r));
   $('#tabs').style.display = '';
 }
@@ -831,7 +835,9 @@ function renderWelcome(){
   $('#tabs').style.display = 'none';
   $('#app').innerHTML = `<div class="welcome"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V13M10 20V9M16 20V5M22 20H2"/></svg>
     <h1>Welcome</h1><p class="sub">Track your balances once a month. Everything stays on this phone.</p>
-    <div class="btns" style="flex-direction:column"><button class="btn primary block" data-action="import">Import a backup (.json)</button><button class="btn block" data-action="startEmpty">Start from scratch</button></div></div>`;
+    <div class="btns" style="flex-direction:column"><button class="btn primary block" data-action="import">Import a backup (.json)</button><button class="btn block" data-action="startEmpty">Start from scratch</button>
+    <button class="btn block" data-action="demo">Try the demo</button></div>
+    <p class="sub" style="margin-top:12px">The demo loads a fictional profile so you can explore every page.</p></div>`;
 }
 addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
 
@@ -1045,6 +1051,13 @@ const ACTIONS = {
   excel: () => exportExcel(),
   import: () => $('#importFile').click(),
   startEmpty: () => { S = DEFAULT_STATE(); save(); render(); },
+  demo: async () => {
+    try {
+      const d = await fetch('example-backup.json', {cache:'no-cache'}).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      S = normalize(d); S.demo = true; save(); location.hash = '#home'; render(); toast('Demo loaded');
+    } catch(e){ alert('The demo could not be loaded. Open the app once with internet and try again.'); }
+  },
+  exitDemo: () => { if (confirm('Leave the demo? Its data will be erased.')) { localStorage.removeItem(KEY); S = null; location.hash = ''; render(); } },
   hideTip: () => { S.settings.hideInstallTip = true; save(); render(); },
   chartRange: d => { chartRange = +d.r; render(); },
   addFlow: () => flowForm(), editFlow: d => flowForm(S.flows.find(f => f.id === d.id)),

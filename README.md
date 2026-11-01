@@ -32,14 +32,24 @@ Also included:
    Safari and the icon keep separate data.
 4. First launch: **Import a backup (.json)** or **Start from scratch**.
 
+### Try the demo
+
+On the welcome screen, tap **Try the demo**. It loads a fictional profile
+([`example-backup.json`](example-backup.json)): 6 months of balances, transfers, dreams and money owed.
+- No download or import needed.
+- A **Demo mode** banner stays on every page.
+- Tap **Exit demo** to erase the demo data and go back to the welcome screen.
+
 ## Publish with GitHub Pages (free)
 
 1. Upload these files to the root of the repository:
-   `index.html`, `sw.js`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `README.md`
+   `index.html`, `sw.js`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`,
+   `README.md`, `example-backup.json`
 2. **Settings** → **Pages** → Source: **Deploy from a branch** → branch `main`, folder `/ (root)` → **Save**.
 3. After 1–2 minutes the app is live at `https://<your-username>.github.io/<repo-name>/`.
 
-> ⚠️ Never upload a backup file (`*.json` with your balances) to this repository: it is public.
+> ⚠️ Never upload your own backup file (with your real balances) to this repository: it is public.
+> Only `example-backup.json`, which is fictional, belongs here.
 
 ## Monthly routine
 

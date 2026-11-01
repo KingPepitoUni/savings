@@ -1,0 +1,64 @@
+{
+ "version": 1,
+ "accounts": [
+  {"id": "main_cc", "name": "Main bank", "group": "cash", "role": "checking", "color": 1},
+  {"id": "second_cc", "name": "Second bank", "group": "cash", "role": "checking", "color": 2},
+  {"id": "livret_a", "name": "Livret A", "group": "cash", "role": "savings", "cap": 22950, "color": 3},
+  {"id": "ldds", "name": "LDDS", "group": "cash", "role": "savings", "cap": 12000, "color": 4},
+  {"id": "card", "name": "Spending card", "group": "cash", "role": "spending", "color": 5},
+  {"id": "broker", "name": "Brokerage (ETFs)", "group": "stocks", "role": "investment", "color": 6},
+  {"id": "company", "name": "Company shares", "group": "alstom", "role": "investment", "color": 8}
+ ],
+ "parties": [
+  {"id": "salary", "name": "Salary", "kind": "income"},
+  {"id": "bonus", "name": "Housing aid", "kind": "income"},
+  {"id": "family", "name": "Family repays", "kind": "income", "dad": true},
+  {"id": "rent", "name": "Rent & charges", "kind": "expense"},
+  {"id": "fixed", "name": "Fixed costs", "kind": "expense"},
+  {"id": "family_cost", "name": "Bill paid for family", "kind": "expense", "dad": true}
+ ],
+ "flows": [
+  {"id": "f1", "from": "salary", "to": "main_cc", "amount": 2000},
+  {"id": "f2", "from": "main_cc", "to": "rent", "amount": 550, "label": "Rent + charges"},
+  {"id": "f3", "from": "main_cc", "to": "card", "amount": 700, "label": "Daily spending"},
+  {"id": "f4", "from": "main_cc", "to": "second_cc", "amount": 550, "label": "Savings + shares"},
+  {"id": "f5", "from": "main_cc", "to": "fixed", "amount": 5, "label": "Bank fees"},
+  {"id": "f6", "from": "bonus", "to": "second_cc", "amount": 100},
+  {"id": "f7", "from": "family", "to": "second_cc", "amount": 120, "label": "Expected repayment"},
+  {"id": "f8", "from": "second_cc", "to": "broker", "amount": 300, "label": "ETFs"},
+  {"id": "f9", "from": "second_cc", "to": "livret_a", "amount": 200, "label": "Monthly saving"},
+  {"id": "f10", "from": "second_cc", "to": "ldds", "amount": 100, "label": "Housing aid saved"},
+  {"id": "f11", "from": "second_cc", "to": "fixed", "amount": 25, "label": "Phone"},
+  {"id": "f12", "from": "second_cc", "to": "fixed", "amount": 25, "label": "Health insurance"},
+  {"id": "f13", "from": "second_cc", "to": "family_cost", "amount": 120, "label": "Insurance paid for family"}
+ ],
+ "snapshots": {
+  "2026-05": {"main_cc": 310, "second_cc": 140, "livret_a": 2400, "ldds": 900, "card": 180, "broker": 1500, "company": 600},
+  "2026-06": {"main_cc": 280, "second_cc": 120, "livret_a": 2600, "ldds": 1000, "card": 90, "broker": 1820},
+  "2026-07": {"main_cc": 350, "second_cc": 150, "livret_a": 2800, "ldds": 1100, "card": 140, "broker": 2080},
+  "2026-08": {"main_cc": 200, "second_cc": 110, "livret_a": 2600, "ldds": 1200, "card": 60, "broker": 2410},
+  "2026-09": {"main_cc": 330, "second_cc": 160, "livret_a": 2800, "ldds": 1300, "card": 150, "broker": 2650},
+  "2026-10": {"main_cc": 300, "second_cc": 130, "livret_a": 3000, "ldds": 1400, "card": 120, "broker": 3020}
+ },
+ "dreams": [
+  {"id": "d1", "name": "New laptop", "target": 1200, "deadline": "2027-02", "accounts": ["livret_a", "ldds"], "order": 1},
+  {"id": "d2", "name": "Summer trip", "target": 1500, "deadline": "2027-07", "accounts": ["livret_a", "ldds"], "order": 2},
+  {"id": "d3", "name": "Dream house", "kind": "house", "deadline": "2030-12", "accounts": ["livret_a", "ldds", "main_cc"], "order": 3}
+ ],
+ "owed": {
+  "recurring": [
+   {"id": "r1", "label": "Insurance paid for family", "amount": 120, "startMonth": "2026-08"}
+  ],
+  "items": [
+   {"id": "o1", "label": "Concert tickets", "amount": 90, "month": "2026-06", "expectedMonth": "2026-07", "received": true, "receivedOn": "2026-07"},
+   {"id": "o2", "label": "Car repair", "amount": 400, "month": "2026-09", "expectedMonth": "2026-12", "received": false}
+  ]
+ },
+ "settings": {
+  "targetMode": "auto", "target": 0, "sharesRatio": 50, "cushionMonths": 6, "cushionNoDad": false,
+  "goalStart": "2026-05", "lastBackup": null, "hideInstallTip": false,
+  "house": {"type": "flat", "priceFlat": 3370, "priceHouse": 3540, "pricesUpdated": "2026-08", "discount": 20, "reno": "medium",
+   "renoCost": {"light": 400, "medium": 800, "heavy": 1500}, "downPct": 10, "notaryPct": 7.5, "guaranteePct": 1.2, "bankFee": 1000,
+   "lastLevel": null, "lastMonth": null}
+ }
+}

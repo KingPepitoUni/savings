@@ -1,8 +1,8 @@
 // Offline support: the app works without internet once opened once.
 // Bump VERSION after uploading a new index.html to refresh the cache.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'savings-' + VERSION;
-const LOCAL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+const LOCAL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './example-backup.json'];
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
 self.addEventListener('install', e => {
